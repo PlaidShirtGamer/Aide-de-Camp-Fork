@@ -14,7 +14,8 @@ public sealed class CreateUnitWindow : Window
         IReadOnlyList<StateOption> States, IReadOnlyDictionary<int, int> Maximums,
         IReadOnlyList<TownStateMap.MappedTown> Towns, string TownProblem,
         IReadOnlyList<CreationPerkOption> CombatPerks, IReadOnlyList<CreationPerkOption> HqPerks,
-        IReadOnlyList<GroupNode> Groups, IReadOnlySet<int> AssignedCommanders, IReadOnlyList<CreationUniform> Uniforms, IReadOnlyList<ManagementSnapshot.State> StateRules);
+        IReadOnlyList<GroupNode> Groups, IReadOnlySet<int> AssignedCommanders, IReadOnlyList<CreationUniform> Uniforms, IReadOnlyList<ManagementSnapshot.State> StateRules,
+        IReadOnlyDictionary<int,string> TierNames);
     private sealed record Choice(int Id, string Label) { public override string ToString() => Label; }
     private sealed record TownChoice(TownStateMap.MappedTown Town, string Label) { public override string ToString() => Label; }
     private readonly GrandTacticianDataService _data;
@@ -41,7 +42,8 @@ public sealed class CreateUnitWindow : Window
         try { towns = data.GetCreationTowns(); } catch (Exception e) { problem = e.Message; }
         return new(data.GetCreationOfficers(), data.WeaponOptions, data.StateOptions, data.GetCreationMaximums(), towns, problem,
             data.GetCreationPerks(false), data.GetCreationPerks(true), data.Groups.Values.ToArray(),
-            data.Groups.Values.Select(g => g.CommanderId).Concat(data.Units.Select(u => u.CommanderId)).ToHashSet(), data.GetCreationUniforms(), data.GetCreationStateRules());
+            data.Groups.Values.Select(g => g.CommanderId).Concat(data.Units.Select(u => u.CommanderId)).ToHashSet(), data.GetCreationUniforms(), data.GetCreationStateRules(),
+            CampaignRules.UnitTierNames(data.SaveDirectory!, data.ConfigDirectory));
     }
     public CreateUnitWindow(GrandTacticianDataService data, NamingSchemeService naming, Catalog catalog, int faction, OobNode? context)
     {
@@ -52,7 +54,7 @@ public sealed class CreateUnitWindow : Window
         var root = new DockPanel { Margin = new(20) }; Content = root;
         var heading = new StackPanel(); DockPanel.SetDock(heading, Dock.Top); root.Children.Add(heading);
         heading.Children.Add(new TextBlock { Text = "Create a command or combat unit", FontSize = 23, FontWeight = FontWeights.SemiBold });
-        heading.Children.Add(Hint("Choose the formation first. Open any section in any order. Native tiers are shown alongside your display scale."));
+        heading.Children.Add(Hint("Choose the formation first. Open any section in any order. Native tier IDs are shown alongside names from the active unitprefs.txt when available."));
         heading.Children.Add(_advanced);
         var footer = new StackPanel(); DockPanel.SetDock(footer, Dock.Bottom); root.Children.Add(footer);
         footer.Children.Add(_review);
@@ -122,14 +124,14 @@ public sealed class CreateUnitWindow : Window
         var list = choices.ToArray(); combo.ItemsSource = list; combo.SelectedItem = list.FirstOrDefault(c => c.Id == selected);
     }
     private string StateName(int id) => _catalog.States.FirstOrDefault(s => s.Id == id)?.Name ?? $"State {id}";
+    private string TierName(int nativeTier, bool headquarters) => _catalog.TierNames.TryGetValue(nativeTier, out var name)
+        ? name : OobPresentation.TierName(nativeTier, headquarters);
     private void RefreshChoices(bool resetKind)
     {
         if (_refreshing) return; _refreshing = true;
         var tiers = Hq ? new[] {18, 16, 15, 14} : Selected(_kind) == 2 ? new[] {11, 10, 12, 13} : new[] {13, 12, 11, 10};
         int tier = resetKind ? (Hq ? 16 : tiers[0]) : Selected(_tier);
-        Set(_tier, tiers.Select(t => new Choice(t, Hq && t == 16 && OobPresentation.RegimentalScale
-            ? "Army (native 16; shown as Corps at this display scale)"
-            : $"{OobPresentation.TierName(t, Hq)}  (native {t})")), tier);
+        Set(_tier, tiers.Select(t => new Choice(t, $"{TierName(t, Hq)}  (native {t})")), tier);
         Set(_commander, new[] {new Choice(-1, "Select an unused commander…")}.Concat(_catalog.Officers.Where(o => o.Faction == Faction && !_catalog.AssignedCommanders.Contains(o.Id)).OrderBy(o => o.Name).Select(o => new Choice(o.Id, $"{o.Name}  • rank {o.Rank}"))), -1);
         Set(_uniform, _catalog.Uniforms.Select((style, index) => (style, index)).Where(p => p.style.Faction == Faction).Select(p => new Choice(p.index, $"Coat {p.style.Coat} • trousers {p.style.Trousers}")), -1);
         if (_uniform.Items.Count > 0) _uniform.SelectedIndex = 0;
@@ -159,7 +161,7 @@ public sealed class CreateUnitWindow : Window
         if (_refreshing) return;
         int old = preferred ?? Selected(_parent);
         var choices = _catalog.Groups.Where(g => _data.IsCreationParent(g, Faction) && (!Hq || g.UnitTier > Selected(_tier)))
-            .OrderBy(g => g.Name).Select(g => new Choice(g.GroupId, $"{g.Name} • {g.TierName} HQ • #{g.GroupId}"));
+            .OrderBy(g => g.Name).Select(g => new Choice(g.GroupId, $"{g.Name} • {TierName(g.UnitTier, true)} HQ • #{g.GroupId}"));
         Set(_parent, new[] { new Choice(-1, Hq ? "Independent command • choose a town" : "Select parent HQ…") }.Concat(choices), old);
         if (_parent.SelectedItem is null) _parent.SelectedIndex = 0;
         UpdatePlacement();
@@ -219,7 +221,7 @@ public sealed class CreateUnitWindow : Window
         var sample = new CombatUnitNode { Name = _name.Text, ParentId = Selected(_parent), WeaponId = Selected(_weapon), UnitType = Math.Max(0, Selected(_kind)), UnitTier = Selected(_tier), Nation = Faction, StateId = Selected(_home), HomeStateName = StateName(Selected(_home)) };
         if (!Hq && Selected(_home) >= 0) names.AddRange(_naming.SuggestCreationNames(sample, _data.Units, used, _data.GetStateAbbreviation));
         for (int n = 1; n <= 10000 && names.Count < 6; n++) {
-            string name = $"{n}{(n % 100 is >= 11 and <= 13 ? "th" : (n % 10) switch {1 => "st", 2 => "nd", 3 => "rd", _ => "th"})} {(Hq ? OobPresentation.TierName(Selected(_tier), true) : sample.TypeName + " " + sample.TierName)}";
+            string name = $"{n}{(n % 100 is >= 11 and <= 13 ? "th" : (n % 10) switch {1 => "st", 2 => "nd", 3 => "rd", _ => "th"})} {(Hq ? TierName(Selected(_tier), true) : sample.TypeName + " " + TierName(Selected(_tier), false))}";
             if (!used.Contains(name) && !names.Contains(name)) names.Add(name);
         }
         _names.ItemsSource = names;
@@ -241,7 +243,7 @@ public sealed class CreateUnitWindow : Window
             var check = _data.AssessCreation(request);
             if (!check.CanCreate) { _review.Text = string.Join("\n", check.Errors); return; }
             var placement = request.Placement.ParentId is int id ? _catalog.Groups.Single(g => g.GroupId == id).Name + " (parent HQ)" : request.Placement.Town!.Location.Name;
-            string summary = $"{blueprint.Name}\n{(Faction == 0 ? "Union" : "Confederacy")} • {OobPresentation.TierName(blueprint.NativeTier, Hq)} (native {blueprint.NativeTier})\nPlacement: {placement}\nCommander: {_commander.Text}";
+            string summary = $"{blueprint.Name}\n{(Faction == 0 ? "Union" : "Confederacy")} • {TierName(blueprint.NativeTier, Hq)} (native {blueprint.NativeTier})\nPlacement: {placement}\nCommander: {_commander.Text}";
             if (!Hq) summary += $"\n{_kind.Text} • {size:N0} men • {_weapon.Text}\nHome state: {StateName(blueprint.HomeStateId)} • {_recruit.Text} • {blueprint.ContractMonths} months\nTraining: {blueprint.Training:0}/100 • Experience: {blueprint.Experience:0}/100\nStarting stock (small arms / artillery / provisions / forage):\n" + string.Join(" / ", blueprint.SupplyPercent.Select(p => $"{p:0.##}% ({size * p / 100:0.##})"));
             var perkCatalog = Hq ? _catalog.HqPerks : _catalog.CombatPerks;
             summary += "\nPerks: " + string.Join("; ", blueprint.Perks.Select(p => (p.Id < 0 ? "No perk" : perkCatalog.First(c => c.Id == p.Id && c.Level == p.Level).Name) + $" • {p.Progress * 100:0}% progress"));

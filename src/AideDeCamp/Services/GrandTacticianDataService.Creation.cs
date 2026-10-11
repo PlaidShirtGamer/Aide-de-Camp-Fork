@@ -174,7 +174,7 @@ public sealed partial class GrandTacticianDataService
                 if (b.WeaponId != -1 || b.Strength != 0 || b.HomeStateId != -1 || b.Training != 0 || b.Experience != 0 || b.HorseArtillery)
                     errors.Add("HQ records cannot contain a combat weapon, manpower, home state, training or combat experience. Clear those combat-only inputs.");
                 warnings.Add("The game will generate this HQ's runtime path on load, as in the accepted HQ tests. HQ supply displays are recalculated from its formation; no combat stock or weapon is assigned to the HQ.");
-                if (b.NativeTier == 18) warnings.Add("Army Group (native tier 18) uses the mapped HQ record layout, but game acceptance and resave have not been verified. Test only on a copied campaign.");
+                if (b.NativeTier == 18) warnings.Add("Native tier 18 uses the mapped HQ record layout (Army in some regimental mods, Army Group in vanilla), but game acceptance and resave have not been verified. Test only on a copied campaign.");
             }
             if (b.Faction != 0 || b.Headquarters && b.NativeTier != 16 && b.NativeTier != 14)
                 warnings.Add("This faction or native HQ tier was not covered by the controlled Union creation tests.");
