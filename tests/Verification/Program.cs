@@ -5,6 +5,19 @@ using AideDeCamp.Services;
 
 int checks = 0;
 void Check(bool test, string label) { if (!test) throw new Exception("FAILED: " + label); checks++; Console.WriteLine("PASS " + label); }
+var regimentalTierLabels = CampaignRules.ParseUnitTierNames([
+    "Number of unit Types", "19",
+    "Unit Type 13# Name --------------------------------", "Regiment",
+    "Unit Type 14# Name --------------------------------", "Brigade",
+    "Unit Type 15# Name --------------------------------", "Division",
+    "Unit Type 16# Name --------------------------------", "Corps",
+    "Unit Type 17# Name --------------------------------", "Fleet",
+    "Unit Type 18# Name --------------------------------", "Army"
+]);
+Check(regimentalTierLabels.Count == 6 &&
+    regimentalTierLabels[13] == "Regiment" && regimentalTierLabels[14] == "Brigade" &&
+    regimentalTierLabels[16] == "Corps" && regimentalTierLabels[17] == "Fleet" &&
+    regimentalTierLabels[18] == "Army", "Modded hierarchy labels preserve native tier IDs");
 if (args.Length == 3 && args[0] == "--creation-write") { try { await CreationChecks.Run(args[1], args[2], Check); Console.WriteLine($"Creation checks passed: {checks}"); } catch (Exception e) { Console.Error.WriteLine(e); Environment.ExitCode = 1; } return; }
 if (args.Length == 4 && args[0] == "--creation-batch") { try { await CreationBatch.Build(args[1], args[2], args[3]); } catch (Exception e) { Console.Error.WriteLine(e); Environment.ExitCode = 1; } return; }
 if (args.Length == 4 && args[0] == "--creation-resave") { try { await CreationBatch.AuditResave(args[1], args[2], args[3], Check); Console.WriteLine($"Game resave checks passed: {checks}"); } catch (Exception e) { Console.Error.WriteLine(e); Environment.ExitCode = 1; } return; }

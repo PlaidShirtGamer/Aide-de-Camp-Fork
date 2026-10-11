@@ -40,9 +40,11 @@ internal static partial class Program
         Check(timer.ElapsedMilliseconds < 2000, "In-memory choice filtering stays responsive");
         Select(Field<ComboBox>("_kind"), -1); Flush(w);
         var hqTiers = Field<ComboBox>("_tier");
-        Check(hqTiers.Items.Count == 4 && hqTiers.Items.Cast<object>().Any(item => item.ToString()!.Contains("Army Group")), "Create exposes the native-tier-18 Army Group HQ");
-        Check(hqTiers.Items.Cast<object>().Single(item => (int)item.GetType().GetProperty("Id")!.GetValue(item)! == 16).ToString()!.Contains("Army"), "Native-tier-16 Army remains explicit at either display scale");
-        Select(hqTiers, 18); Check(Id(hqTiers) == 18, "Army Group tier is selectable");
+        string ExpectedName(int tier) => catalog.TierNames.TryGetValue(tier, out var label) ? label : OobPresentation.TierName(tier, true);
+        string TierLabel(int tier) => hqTiers.Items.Cast<object>().Single(item => (int)item.GetType().GetProperty("Id")!.GetValue(item)! == tier).ToString()!;
+        Check(hqTiers.Items.Count == 4 && TierLabel(18).Contains(ExpectedName(18)), "Create exposes the configured top-tier HQ name at native tier 18");
+        Check(TierLabel(16).Contains(ExpectedName(16)), "Native-tier-16 HQ uses its configured name, not a hard-coded Army label");
+        Select(hqTiers, 18); Check(Id(hqTiers) == 18, "Top-tier HQ is selectable");
         Select(hqTiers, 16);
         Check(Field<StackPanel>("_location").Visibility == Visibility.Visible && !Field<StackPanel>("_combat").IsEnabled, "Independent HQ uses town placement and disables combat-only fields");
         Check(!Field<Slider>("_experience").IsEnabled && Field<StackPanel>("_perkPanel").Children.Count == 8, "HQ exposes four distinct perk slots and no combat experience field");

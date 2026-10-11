@@ -42,8 +42,9 @@ combat units have one. A name suggestion only changes the name.
 
 ## Evidence and version boundary
 
-* Save version: **1.142**. Native-tier-18 Army Group creation is editor-validated
-  but not game-tested; continue to use copies of campaign saves.
+* Save version: **1.142**. Native-tier-18 HQ creation is editor-validated but
+  not game-tested; the tier is Army Group in vanilla and Army in some regimental
+  mods. Continue to use copies of campaign saves.
 * Installed `Assembly-CSharp.dll` SHA-256:
   `AE15E3E479F4D79B70E40CED42EB93A953569B8185E075B3873C7410462AE8C4`.
 * Tests 1–2: user-confirmed Fort Monroe artillery, brigade infantry, division cavalry,
@@ -151,11 +152,15 @@ fallback constants. Artillery gun estimates use ADC's existing configuration rul
 
 Append/ID allocation is as above in its own ID namespace. Native tiers 14–16 and
 18 are selectable land HQs; 17 remains reserved for fleets in ADC's current save
-classifier. Native 16 is the game-format Army, even when the optional regimental
-presentation labels it Corps. Tier 18 is Army Group, but its creation has not
-been verified by an in-game load and resave. ADC requires explicit confirmation
-for this untested tier. Subordinate HQ tier must be less than the parent's;
-new fort HQs are not created. `CreateUnitFiles`/`create_regiment` trace the following fields; ADC writes
+classifier. The Create Unit dropdown resolves the effective `unitprefs.txt` via
+the same scenario/save/config precedence as other campaign rules, rather than
+assuming a tier's vanilla name. Thus the regimental mod can label native 13 as
+Regiment, 14 as Brigade, 15 as Division, 16 as Corps and 18 as Army without
+altering the IDs written to a save. The `campaignprefs.txt` hierarchy shift is a
+game preference, not an instruction to subtract from persisted tier IDs.
+Native-tier-18 creation has not been verified by an in-game load and resave; ADC
+requires explicit confirmation. Subordinate HQ tier must be less than the
+parent's; new fort HQs are not created. `CreateUnitFiles`/`create_regiment` trace the following fields; ADC writes
 `CreationRecords.Group` and later `PatchGroup` edits.
 
 | Offset | Meaning | Initial value/source |
