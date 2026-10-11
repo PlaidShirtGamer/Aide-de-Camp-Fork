@@ -77,6 +77,11 @@ internal static class CreationChecks
             check(!data.AssessCreation(hqRequest with { Placement = new(parent.GroupId) }).CanCreate, "Army under division rejected");
             check(!data.AssessCreation(hqRequest with { Placement = new(null) }).CanCreate, "Unresolved town rejected");
             check(!data.AssessCreation(hqRequest with { Blueprint = hq with { WeaponId = 25 } }).CanCreate, "HQ with a combat weapon rejected at service boundary");
+            var highCommand = hq with { Name = "ADC automated Army Group check", NativeTier = 18 };
+            var highRequest = new CreationRequest(highCommand, new(null, town));
+            var highAssessment = data.AssessCreation(highRequest);
+            check(highAssessment.CanCreate && highAssessment.Confirmations.Any(w => w.Contains("native tier 18")), "Army Group uses mapped HQ fields with an explicit untested-tier confirmation");
+            check(!data.AssessCreation(highRequest with { Blueprint = highCommand with { NativeTier = 17 } }).CanCreate, "Native-tier-17 fleet remains excluded from land HQ creation");
             var hqCheck = data.AssessCreation(hqRequest); check(hqCheck.CanCreate, "Town HQ assessment: " + string.Join("; ", hqCheck.Errors));
             var group = (GroupNode)data.CreateUnit(hqRequest, true, session);
             await data.SaveAsync(); data.MarkSavedStates();
@@ -85,6 +90,15 @@ internal static class CreationChecks
             check(float.Parse(battle[deployment + 2], System.Globalization.CultureInfo.InvariantCulture) == town.Location.X && float.Parse(battle[deployment + 3], System.Globalization.CultureInfo.InvariantCulture) == -town.Location.Z, "Town deployment uses verified coordinates with map Z conversion");
             session.Undo(out _); await data.SaveAsync();
             check(original["battledata.dat"].SequenceEqual(File.ReadAllBytes(Path.Combine(copy, "battledata.dat"))), "HQ undo restores deployment and economy tail byte-exact");
+            var armyGroup = (GroupNode)data.CreateUnit(highRequest, true, session);
+            check(armyGroup.UnitTier == 18 && data.IsCreationParent(armyGroup, 0), "New Army Group accepts lower-tier HQs as children");
+            await data.SaveAsync(); data.MarkSavedStates();
+            using (var reload = new GrandTacticianDataService()) {
+                await reload.LoadAsync(copy, config);
+                var restored = reload.Groups.Values.Single(g => g.Name == highCommand.Name);
+                check(restored.UnitTier == 18 && restored.IsLandCommand && reload.IsCreationParent(restored, 0), "Army Group saves and reloads as a land HQ in ADC");
+            }
+            session.Undo(out _); await data.SaveAsync();
             File.WriteAllText(Path.Combine(copy, "version.dat"), "9.999");
             check(!data.AssessCreation(request).CanCreate, "Unknown version layout cannot be bypassed by confirmation");
         } finally {

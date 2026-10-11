@@ -39,6 +39,11 @@ internal static partial class Program
         timer.Stop(); Console.WriteLine($"25 branch/filter changes: {timer.ElapsedMilliseconds} ms");
         Check(timer.ElapsedMilliseconds < 2000, "In-memory choice filtering stays responsive");
         Select(Field<ComboBox>("_kind"), -1); Flush(w);
+        var hqTiers = Field<ComboBox>("_tier");
+        Check(hqTiers.Items.Count == 4 && hqTiers.Items.Cast<object>().Any(item => item.ToString()!.Contains("Army Group")), "Create exposes the native-tier-18 Army Group HQ");
+        Check(hqTiers.Items.Cast<object>().Single(item => (int)item.GetType().GetProperty("Id")!.GetValue(item)! == 16).ToString()!.Contains("Army"), "Native-tier-16 Army remains explicit at either display scale");
+        Select(hqTiers, 18); Check(Id(hqTiers) == 18, "Army Group tier is selectable");
+        Select(hqTiers, 16);
         Check(Field<StackPanel>("_location").Visibility == Visibility.Visible && !Field<StackPanel>("_combat").IsEnabled, "Independent HQ uses town placement and disables combat-only fields");
         Check(!Field<Slider>("_experience").IsEnabled && Field<StackPanel>("_perkPanel").Children.Count == 8, "HQ exposes four distinct perk slots and no combat experience field");
         Field<TextBox>("_search").Text = "phil";
