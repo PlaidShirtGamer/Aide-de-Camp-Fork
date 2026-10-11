@@ -42,7 +42,9 @@ combat units have one. A name suggestion only changes the name.
 
 ## Evidence and version boundary
 
-* Save version: **1.142**. Installed `Assembly-CSharp.dll` SHA-256:
+* Save version: **1.142**. Native-tier-18 Army Group creation is editor-validated
+  but not game-tested; continue to use copies of campaign saves.
+* Installed `Assembly-CSharp.dll` SHA-256:
   `AE15E3E479F4D79B70E40CED42EB93A953569B8185E075B3873C7410462AE8C4`.
 * Tests 1–2: user-confirmed Fort Monroe artillery, brigade infantry, division cavalry,
   subordinate artillery HQ and three artillery battalions. Game resave:
@@ -147,9 +149,13 @@ fallback constants. Artillery gun estimates use ADC's existing configuration rul
 
 ### `groups.dat`: count + 32 lines per record
 
-Append/ID allocation is as above in its own ID namespace. Native tiers 14–16 are
-land HQs; subordinate HQ tier must be less than the parent's. New fort HQs are not
-created. `CreateUnitFiles`/`create_regiment` trace the following fields; ADC writes
+Append/ID allocation is as above in its own ID namespace. Native tiers 14–16 and
+18 are selectable land HQs; 17 remains reserved for fleets in ADC's current save
+classifier. Native 16 is the game-format Army, even when the optional regimental
+presentation labels it Corps. Tier 18 is Army Group, but its creation has not
+been verified by an in-game load and resave. ADC requires explicit confirmation
+for this untested tier. Subordinate HQ tier must be less than the parent's;
+new fort HQs are not created. `CreateUnitFiles`/`create_regiment` trace the following fields; ADC writes
 `CreationRecords.Group` and later `PatchGroup` edits.
 
 | Offset | Meaning | Initial value/source |

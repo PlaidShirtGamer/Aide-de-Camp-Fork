@@ -98,7 +98,7 @@ public sealed partial class GrandTacticianDataService
     {
         var seen = new HashSet<int>(); var current = group;
         while (true) {
-            if (!seen.Add(current.GroupId) || current.Nation != faction || current.UnitTier is < 14 or > 16) return false;
+            if (!seen.Add(current.GroupId) || current.Nation != faction || current.UnitTier is not (14 or 15 or 16 or 18)) return false;
             if (current.ParentId < 0) return true;
             if (!_groups.TryGetValue(current.ParentId, out current!)) return false;
         }
@@ -121,7 +121,7 @@ public sealed partial class GrandTacticianDataService
             if (b.Faction is not (0 or 1)) errors.Add("Choose Union or Confederacy.");
             if (string.IsNullOrWhiteSpace(b.Name) || b.Name.Length > 200 || b.Name.Any(c => char.IsControl(c))) errors.Add("Enter a name without control characters (up to 200 characters).");
             if (_units.Any(u => u.Name == b.Name) || _groups.Values.Any(g => g.Name == b.Name)) errors.Add("Use an available name; this name already exists in the save.");
-            if (b.Headquarters ? b.NativeTier is < 14 or > 16 : b.NativeTier is < 10 or > 13) errors.Add("The native tier does not belong to this kind of unit.");
+            if (b.Headquarters ? b.NativeTier is not (14 or 15 or 16 or 18) : b.NativeTier is < 10 or > 13) errors.Add("The native tier does not belong to this kind of unit.");
             GroupNode? parent = null;
             if (request.Placement.ParentId is int id) {
                 if (!_groups.TryGetValue(id, out parent) || !IsCreationParent(parent, b.Faction)) errors.Add("The parent must be an existing land HQ in the selected faction.");
@@ -174,6 +174,7 @@ public sealed partial class GrandTacticianDataService
                 if (b.WeaponId != -1 || b.Strength != 0 || b.HomeStateId != -1 || b.Training != 0 || b.Experience != 0 || b.HorseArtillery)
                     errors.Add("HQ records cannot contain a combat weapon, manpower, home state, training or combat experience. Clear those combat-only inputs.");
                 warnings.Add("The game will generate this HQ's runtime path on load, as in the accepted HQ tests. HQ supply displays are recalculated from its formation; no combat stock or weapon is assigned to the HQ.");
+                if (b.NativeTier == 18) warnings.Add("Army Group (native tier 18) uses the mapped HQ record layout, but game acceptance and resave have not been verified. Test only on a copied campaign.");
             }
             if (b.Faction != 0 || b.Headquarters && b.NativeTier != 16 && b.NativeTier != 14)
                 warnings.Add("This faction or native HQ tier was not covered by the controlled Union creation tests.");
@@ -305,7 +306,7 @@ public sealed partial class GrandTacticianDataService
         try {
             var forts = File.Exists(path) ? ExistingGarrisonReferenceService.Resolve(TextFileBuffer.Read(path).Lines, _groups).Select(l => l.GroupId).ToHashSet() : new HashSet<int>();
             foreach (var group in _groups.Values) group.SavedCategory = group.UnitTier == 17 ? CommandCategory.Fleet
-                : group.UnitTier is >= 14 and <= 16 ? forts.Contains(group.GroupId) ? CommandCategory.Garrison : CommandCategory.FieldCommand : null;
+                : group.UnitTier is 14 or 15 or 16 or 18 ? forts.Contains(group.GroupId) ? CommandCategory.Garrison : CommandCategory.FieldCommand : null;
         } catch (InvalidDataException) { /* Keep legacy inspection available; creation reports the broken reference. */ }
     }
 

@@ -125,9 +125,11 @@ public sealed class CreateUnitWindow : Window
     private void RefreshChoices(bool resetKind)
     {
         if (_refreshing) return; _refreshing = true;
-        var tiers = Hq ? new[] {16, 15, 14} : Selected(_kind) == 2 ? new[] {11, 10, 12, 13} : new[] {13, 12, 11, 10};
-        int tier = resetKind ? tiers[0] : Selected(_tier);
-        Set(_tier, tiers.Select(t => new Choice(t, $"{OobPresentation.TierName(t, Hq)}  (native {t})")), tier);
+        var tiers = Hq ? new[] {18, 16, 15, 14} : Selected(_kind) == 2 ? new[] {11, 10, 12, 13} : new[] {13, 12, 11, 10};
+        int tier = resetKind ? (Hq ? 16 : tiers[0]) : Selected(_tier);
+        Set(_tier, tiers.Select(t => new Choice(t, Hq && t == 16 && OobPresentation.RegimentalScale
+            ? "Army (native 16; shown as Corps at this display scale)"
+            : $"{OobPresentation.TierName(t, Hq)}  (native {t})")), tier);
         Set(_commander, new[] {new Choice(-1, "Select an unused commander…")}.Concat(_catalog.Officers.Where(o => o.Faction == Faction && !_catalog.AssignedCommanders.Contains(o.Id)).OrderBy(o => o.Name).Select(o => new Choice(o.Id, $"{o.Name}  • rank {o.Rank}"))), -1);
         Set(_uniform, _catalog.Uniforms.Select((style, index) => (style, index)).Where(p => p.style.Faction == Faction).Select(p => new Choice(p.index, $"Coat {p.style.Coat} • trousers {p.style.Trousers}")), -1);
         if (_uniform.Items.Count > 0) _uniform.SelectedIndex = 0;
