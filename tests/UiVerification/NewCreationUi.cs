@@ -31,7 +31,7 @@ internal static partial class Program
         Write("regiments.dat",["0"]);Write("armygrouprefs.dat",["1","-1","1","0","True","0"]);
         using var data=new GrandTacticianDataService();data.LoadAsync(root,config).GetAwaiter().GetResult();
         OobPresentation.RegimentalScale=true;
-        var catalog=new CreateUnitWindow.Catalog(data.GetCreationOfficers(),[],data.StateOptions,new Dictionary<int,int>{{0,1000},{1,600},{2,90}},[],"",[],[],data.Groups.Values.ToArray(),data.AssignedCommanderIds(),[new(0,"000-049-083","135-206-235","000-000-000")],[]);
+        var catalog=new CreateUnitWindow.Catalog(data.GetCreationOfficers(),[],data.StateOptions,new Dictionary<int,int>{{0,1000},{1,600},{2,90}},[],"",[],[],data.Groups.Values.ToArray(),data.AssignedCommanderIds(),[new(0,"000-049-083","135-206-235","000-000-000")],[],new Dictionary<int,string>());
         var w=new CreateUnitWindow(data,new NamingSchemeService(),catalog,0,null);
         T Field<T>(object obj,string name)=>(T)obj.GetType().GetField(name,BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(obj)!;
         void Select(ComboBox c,int id)=>c.SelectedItem=c.Items.Cast<object>().Single(o=>(int)o.GetType().GetProperty("Id")!.GetValue(o)! == id);
@@ -111,6 +111,7 @@ internal static partial class Program
         Check(Field<int>(main,"_nation")==1 && ((TextBox)main.FindName("SearchBox")).Text=="","Warning jump switches faction and clears a hiding search");
         typeof(MainWindow).GetMethod("NavigateToValidationTarget",BindingFlags.NonPublic|BindingFlags.Instance)!.Invoke(main,[hq]);
         Check(ReferenceEquals(Field<OobNode>(main,"_selectedNode"),hq),"HQ navigation remains distinct from combat unit with the same numeric ID");
+        typeof(MainWindow).GetField("_allowClose",BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(main,true);
         main.Close();
 
         Write("groups.dat",new[]{"1"}.Concat(CreationRecords.Group(0,new UnitBlueprint {Headquarters=true,Name="Created Army",CommanderId=0,NativeTier=18,Perks=[new(),new(),new(),new()]},null)));

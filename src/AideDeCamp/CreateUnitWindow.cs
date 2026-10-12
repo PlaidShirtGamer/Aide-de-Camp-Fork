@@ -47,7 +47,8 @@ public sealed class CreateUnitWindow : Window
         try { towns = data.GetCreationTowns(); } catch (Exception e) { problem = e.Message; }
         return new(data.GetCreationOfficers(), data.WeaponOptions, data.StateOptions, data.GetCreationMaximums(), towns, problem,
             data.GetCreationPerks(false), data.GetCreationPerks(true), data.Groups.Values.ToArray(),
-            data.AssignedCommanderIds(), data.GetCreationUniforms(), data.GetCreationStateRules());
+            data.AssignedCommanderIds(), data.GetCreationUniforms(), data.GetCreationStateRules(),
+            CampaignRules.UnitTierNames(data.SaveDirectory!, data.ConfigDirectory));
     }
     public CreateUnitWindow(GrandTacticianDataService data, NamingSchemeService naming, Catalog catalog, int faction, OobNode? context)
     {
