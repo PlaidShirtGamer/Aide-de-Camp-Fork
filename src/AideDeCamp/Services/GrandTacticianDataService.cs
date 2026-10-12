@@ -31,7 +31,7 @@ public sealed partial class GrandTacticianDataService : IDisposable
     private TextFileBuffer? _pathBuffer;
     private string? _tempExtractDir;
 
-    private static readonly string[] MonitoredSaveFiles = { "regiments.dat", "paths.dat", "groups.dat", "garrisonrefs.dat", "IIPsTowns.dat", "scenario.dat", "version.dat", "commanders.txt", "nations.dat", "ships.dat", "weapons.dat", "shiptype.dat", "battledata.dat", "armygrouprefs.dat" };
+    private static readonly string[] MonitoredSaveFiles = { "regiments.dat", "paths.dat", "groups.dat", "garrisonrefs.dat", "IIPsTowns.dat", "scenario.dat", "version.dat", "commanders.txt", "nations.dat", "ships.dat", "weapons.dat", "shiptype.dat", "battledata.dat", "armygrouprefs.dat", "armygroups.dat" };
 
     // GTCW State_ID is a fixed game enumeration, not a campaign-local sequence.
     // Keep this independent of regiment service-history prose: many campaign units
@@ -119,6 +119,7 @@ public sealed partial class GrandTacticianDataService : IDisposable
             ParseCommanders(Path.Combine(SaveDirectory!, "commanders.txt"));
             ParseGroups(Path.Combine(SaveDirectory!, "groups.dat"));
             ValidateGroupHierarchy();
+            LoadArmyGroups();
             _regimentBuffer = TextFileBuffer.Read(Path.Combine(SaveDirectory!, "regiments.dat"));
             ParseRegiments(_regimentBuffer.Lines);
             InferStateNamesFromServiceHistory(_regimentBuffer.Lines);
@@ -374,6 +375,7 @@ public sealed partial class GrandTacticianDataService : IDisposable
 
     public void MoveUnit(CombatUnitNode unit, GroupNode newParent)
     {
+        if (newParent.IsArmyGroup) throw new InvalidOperationException("Army Group membership is inspection only.");
         unit.ParentId = newParent.GroupId;
         unit.Nation = newParent.Nation;
         unit.CommandPath = BuildCommandPath(newParent.GroupId);
@@ -401,6 +403,7 @@ public sealed partial class GrandTacticianDataService : IDisposable
 
     public bool CanMoveGroup(GroupNode moving, GroupNode target)
     {
+        if (moving.IsArmyGroup || target.IsArmyGroup || moving.ArmyGroupName is not null) return false;
         if (!moving.IsLandCommand || !target.IsLandCommand || moving == target || moving.Nation != target.Nation || moving.UnitTier >= target.UnitTier) return false;
         var seen = new HashSet<int>();
         var current = target;
@@ -656,6 +659,7 @@ public sealed partial class GrandTacticianDataService : IDisposable
             if (!int.TryParse(lines[s].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var id)) continue;
             var combined = lines[s + 3];
             if (string.IsNullOrWhiteSpace(combined)) combined = $"{lines[s + 2]} {lines[s + 1]}".Trim();
+            _commanderNations[id] = RequiredInt(lines[s + 4], "Commander nation");
             _commanders[id] = combined;
             _commanderRanks[id] = CurrentCommanderRank(lines, s);
         }
@@ -1154,6 +1158,8 @@ public sealed partial class GrandTacticianDataService : IDisposable
     private void Reset()
     {
         ResetCreation();
+        _armyGroups.Clear();
+        _commanderNations.Clear();
         _commanders.Clear();
         _commanderRanks.Clear();
         _weaponNames.Clear();

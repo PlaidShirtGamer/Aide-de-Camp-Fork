@@ -15,6 +15,7 @@ public partial class MainWindow
         OobNode? context = (sender as FrameworkElement)?.DataContext as OobNode;
         if (Equals((sender as FrameworkElement)?.Tag, "RosterCreate")) context = _creationRosterContext;
         else if (sender is Button) context = _selectedNode;
+        if (context is GroupNode { IsArmyGroup: true }) context = null;
         try {
             _openingCreate = true;
             StatusText.Text = "Loading creation choices…";

@@ -126,7 +126,7 @@ public partial class MainWindow
         if (!RosterFields.IsSupported(key)) return new Border();
         TypedField? field = null;
         if (row.Unit is CombatUnitNode u && CanEdit(u)) Draft(u).Fields.TryGetValue(key, out field);
-        else if (row.Group is GroupNode g && g.IsLandCommand && key == "Name") field = GroupNameDraft(g);
+        else if (row.Group is GroupNode g && g.IsLandCommand && !g.IsArmyGroup && key == "Name") field = GroupNameDraft(g);
         if (editing && field is not null) {
             Control input = row.Unit is CombatUnitNode unit ? (Control)TypedEditor(Draft(unit), key) : GroupNameEditor(row.Group!);
             input.Padding = new Thickness(3, 1, 3, 1);

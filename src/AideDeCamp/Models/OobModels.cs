@@ -12,6 +12,7 @@ public static class OobPresentation
     public static bool RegimentalScale { get; set; }
     public static int DisplayTier(int nativeTier) => !RegimentalScale ? nativeTier : nativeTier switch
     {
+        18 => 16, // GTIP Army (Army Groups are separate records)
         16 => 15, // Army → Corps
         15 => 14, // Corps → Division
         14 => 13, // Division → Brigade
@@ -57,7 +58,7 @@ public abstract class OobNode : INotifyPropertyChanged
     public string IdentitySecondary {
         get {
             var path = this is CombatUnitNode u ? u.CommandPath : ((GroupNode)this).CommandPath;
-            var parent = path.Split(" › ", StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+            var parent = (this as GroupNode)?.ArmyGroupName ?? path.Split(" › ", StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
             var tier = this is CombatUnitNode unit ? unit.TierName : ((GroupNode)this).TierName + " HQ";
             var parentId = this is CombatUnitNode combat ? combat.ParentId : ((GroupNode)this).ParentId;
             var membership = parent is not null ? "Under " + parent : parentId >= 0 ? $"Parent command #{parentId}" : this is GroupNode ? "Independent command" : "Unattached formation";
@@ -86,6 +87,9 @@ public sealed class GroupNode : OobNode
     public override bool IsGroup => true;
     public bool IsLandCommand { get; set; } = true;
     public CommandCategory? SavedCategory { get; set; }
+    // Display-only Army Groups never enter the writable groups.dat dictionary.
+    public bool IsArmyGroup { get; init; }
+    public string? ArmyGroupName { get; set; }
     public int GroupId { get; init; }
     public int GroupLineStart { get; set; }
     public string RawName { get; set; } = string.Empty;
@@ -101,8 +105,8 @@ public sealed class GroupNode : OobNode
     public int UnitTier { get; init; }
     public string CommanderName { get; set; } = string.Empty;
     public string CommanderDisplayName { get; set; } = string.Empty;
-    public int PresentationTier => OobPresentation.DisplayTier(UnitTier);
-    public string TierName => OobPresentation.TierName(UnitTier, headquarters: true);
+    public int PresentationTier => IsArmyGroup ? 18 : OobPresentation.DisplayTier(UnitTier);
+    public string TierName => IsArmyGroup ? "Army Group" : OobPresentation.TierName(UnitTier, headquarters: true);
 
     private AggregateCache Aggregate => _aggregate ??= BuildAggregate();
 

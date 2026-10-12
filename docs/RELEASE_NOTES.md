@@ -1,3 +1,10 @@
+## GTIP hierarchy test build (test branch)
+
+- Reads separate Army Group records and attachments from `armygroups.dat`, showing them above their attached commands in Tree and Roster.
+- With **Regimental scale** enabled, HQ symbol 18 displays as **Army** with a four-cross counter. Separate Army Group records retain five-cross counters.
+- Army Group names, commanders and membership are inspection only. Edit attached formations normally; change Army Group membership in game. Attached root HQs cannot be dragged into other commands while membership records are read-only.
+- Loading now monitors `armygroups.dat` for external changes. Display parentage is never serialized into `groups.dat`.
+
 # Aide-de-Camp 0.8.16 — Unit Creation Test Build
 
 Alpha prerelease for Windows x64. Extract `Aide-de-Camp-0.8.16-win-x64.zip` and run

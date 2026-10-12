@@ -283,6 +283,9 @@ public partial class MainWindow : Window
             u => IsUnitInCurrentCommandCategory(u));
         if (_category == CommandCategory.Unknown)
             _displayModel.UnattachedUnits.AddRange(_data.Units.Where(u => u.Nation == _nation && IsUnitInCurrentCommandCategory(u) && !_displayModel.CommandsById.ContainsKey(u.ParentId)));
+        if (_category == CommandCategory.FieldCommand) ArmyGroupDisplay.Attach(_displayModel, _data.ArmyGroups, _nation);
+        _roots.Clear();
+        _roots.AddRange(_displayModel.Roots.Select(r => r.Source));
         ApplyDisplayOrder();
         if (_showRoster && !initialLoad) _oobVisibilityDirty = true;
         else RefreshOobCanvas();
@@ -1432,7 +1435,7 @@ public partial class MainWindow : Window
         SelectionCountText.Text = $"{count:N0} selected" + (hiddenCount > 0 ? $" ({hiddenCount} hidden)" : "");
         if(ManagementWorkspace.Visibility == Visibility.Visible) { EditSuppliesButton.IsEnabled = false; UpdateManagementSelectionUi(); }
         else {
-            EditSelectedButton.IsEnabled=count>0 && _selectedUnits.All(CanEdit) || count==0 && _selectedNode is GroupNode {IsLandCommand:true};
+            EditSelectedButton.IsEnabled=count>0 && _selectedUnits.All(CanEdit) || count==0 && _selectedNode is GroupNode {IsLandCommand:true, IsArmyGroup:false};
             EditSuppliesButton.IsEnabled = count > 0 && _selectedUnits.All(u => CanEdit(u) &&
                 u.HasSupplyStock && u.PathLinkStatus == PathLinkStatus.Confirmed);
             ReselectBatchButton.IsEnabled=_workspace is "Armies" or "Garrisons";
@@ -1503,7 +1506,11 @@ public partial class MainWindow : Window
     private void ExpandAncestors(CombatUnitNode unit)
     {
         var id = unit.ParentId; var guard = 0;
-        while (id >= 0 && _data.Groups.TryGetValue(id, out var g) && guard++ < 32) { g.IsExpanded = true; id = g.ParentId; }
+        while (id >= 0 && _data.Groups.TryGetValue(id, out var g) && guard++ < 32) {
+            g.IsExpanded = true;
+            foreach (var armyGroup in _data.ArmyGroups.Where(a => a.AttachedGroupIds.Contains(id))) armyGroup.Source.IsExpanded = true;
+            id = g.ParentId;
+        }
     }
 
     private void ViewInRoster_Click(object sender, RoutedEventArgs e)
@@ -1565,7 +1572,7 @@ public partial class MainWindow : Window
     private void UndoWorkingEdit()
     {
         if (!_editSession.Undo(out var description)) return;
-        if (_selectedUnit is not null && !_data.Units.Contains(_selectedUnit) || _selectedNode is GroupNode removed && !_data.Groups.ContainsKey(removed.GroupId)) {
+        if (_selectedUnit is not null && !_data.Units.Contains(_selectedUnit) || _selectedNode is GroupNode removed && !removed.IsArmyGroup && !_data.Groups.ContainsKey(removed.GroupId)) {
             ClearBatchSelection(); ClearDetails(); _selectedUnit = null; _selectedNode = null;
         }
         RebuildSide();
@@ -1606,7 +1613,7 @@ public partial class MainWindow : Window
     {
         _dirty = dirty;
         DirtyIndicator.Text = dirty ? "● UNSAVED" : string.Empty;
-        Title = "Aide-de-Camp 0.8.16 — Unit Creation Test Build" + (dirty ? " *" : "");
+        Title = "Aide-de-Camp 0.8.16 — GTIP Hierarchy Test Build" + (dirty ? " *" : "");
     }
 
     protected override void OnClosing(CancelEventArgs e)

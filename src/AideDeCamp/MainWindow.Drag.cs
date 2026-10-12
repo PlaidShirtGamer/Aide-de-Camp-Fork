@@ -72,7 +72,7 @@ public partial class MainWindow
     }
     private void BeginGroupDrag(DependencyObject source, GroupNode group)
     {
-        if (!group.IsLandCommand) return;
+        if (!group.IsLandCommand || group.IsArmyGroup || group.ArmyGroupName is not null) return;
         _activeGroupDrag = group; _beforeDrag = _displayModel;
         _dropParent = null; _dropIndex = -1; _dragCommitted = false;
         _dragExpansions.Clear();
@@ -152,7 +152,7 @@ public partial class MainWindow
         LayoutDisplayModel(); RebuildConnectorVisuals(); ApplyCanvasTransform();
         foreach (var card in NodeCanvas.Children.OfType<FrameworkElement>()) card.Opacity = 1;
     }
-    private bool ValidDropParent(GroupNode group) => _activeDrag is not null &&
+    private bool ValidDropParent(GroupNode group) => !group.IsArmyGroup && _activeDrag is not null &&
         _activeDrag.Units.All(u => u.Nation == group.Nation && CanEdit(u)) &&
         _commandClassifier.CategoryForGroup(group, _data.Groups) is CommandCategory.FieldCommand or CommandCategory.Garrison;
 

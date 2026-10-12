@@ -1,7 +1,7 @@
 name: Build and verify Windows package
 on:
   push:
-    branches: [master]
+    branches: [master, test]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -27,6 +27,8 @@ jobs:
         run: dotnet run --project tests/UiVerification -c Release --no-build -- --tree-checks artifacts/tree-after
       - name: Verify save card cache and measure zoom transitions
         run: dotnet run --project tests/UiVerification -c Release --no-build -- --tree-performance artifacts/tree-performance
+      - name: Verify Army Group tree
+        run: dotnet run --project tests/UiVerification -c Release --no-build -- --army-group-ui artifacts/army-group-ui
       - name: Package
         run: ./scripts/Package.ps1
       - name: Verify extracted package

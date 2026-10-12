@@ -27,6 +27,7 @@ internal static partial class Program
         try {
             var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
             app.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("/Aide-de-Camp;component/Themes/Dark.xaml", UriKind.Relative) });
+            if (args.Length == 2 && args[0] == "--army-group-ui") { ArmyGroupUi(args[1]); Console.WriteLine($"ALL {checks} ARMY GROUP UI CHECKS PASSED"); app.Shutdown(); return 0; }
             if (args.Length == 3 && args[0] == "--creation-ui") { CheckCreationUi(args[1], args[2]); Console.WriteLine($"Creation UI checks passed: {checks}"); app.Shutdown(); return 0; }
             if(args.Length==3 && args[0]=="--population-checks") {
                 var populationWindow=new MainWindow(true);
