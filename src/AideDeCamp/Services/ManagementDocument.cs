@@ -7,7 +7,7 @@ namespace AideDeCamp.Services;
 // Each editable field is tied to a validated record and a loaded byte-preserving buffer.
 // Validated counted progression lists may grow; scalar addresses stay relative to the loaded buffer.
 // No guessed line searches or cached recruitment writes are used.
-public sealed class ManagementDocument
+public sealed partial class ManagementDocument
 {
     public sealed record Field(string File,int Line,string Key,string Label,string Kind="number",double Min=0,double Max=float.MaxValue,int? MirrorLine=null);
     public sealed record Record(string Domain,int Id,int Side,string Name,List<Field> Fields);
@@ -21,8 +21,8 @@ public sealed class ManagementDocument
     public List<Stock> Stocks {get;}=new();
     public List<string> Notices {get;}=new();
     private IEnumerable<KeyValuePair<(string File,int Line),string>> Unsaved()=>Capture().Where(p=>!_saved.TryGetValue(p.Key,out var v)||v!=p.Value);
-    public bool HasChanges=>Unsaved().Any();
-    public int ChangedFields=>Unsaved().Count();
+    public bool HasChanges=>Unsaved().Any() || OfficersStructureChanged;
+    public int ChangedFields=>Unsaved().Count() + (OfficersStructureChanged ? 1 : 0);
     static readonly CultureInfo Inv=CultureInfo.InvariantCulture;
     public static ManagementDocument Load(string directory)
     {
@@ -38,22 +38,7 @@ public sealed class ManagementDocument
                 doc.Records.RemoveRange(recordCount,doc.Records.Count-recordCount);doc.Stocks.RemoveRange(stockCount,doc.Stocks.Count-stockCount);doc.Notices.Add(file+": editing unavailable — "+ex.Message);
             }
         }
-        Domain("commanders.txt",l=>{
-            int n=Count(l,66);var ids=new HashSet<int>();
-            for(int i=0;i<n;i++) {
-                int p=1+66*i,id=Int(l[p]),side=Int(l[p+4]);if(!ids.Add(id))throw new InvalidDataException("Duplicate officer ID.");
-                var f=new List<Field>{new("commanders.txt",p+5,"Experience","Experience (0–100)",Max:100),new("commanders.txt",p+11,"Veteran","Veteran","bool"),new("commanders.txt",p+12,"WestPoint","West Point","bool"),new("commanders.txt",p+55,"Political","Political officer","bool"),new("commanders.txt",p+13,"Branch","Historical branch (−1 none; 0 infantry, 1 cavalry, 2 artillery, 3 engineer, 4 navy)","integer",-1,4)};
-                foreach(var (offset,key) in new[]{(6,"Fame"),(7,"Leadership"),(8,"Initiative"),(9,"Administration"),(10,"Cunning")})f.Insert(f.Count-4,new("commanders.txt",p+offset,key,key+" (0–100)",Max:100));
-                string[] ranks={"Lieutenant","Captain / Navy commander","Major / Navy captain","Lieutenant Colonel / Navy flag officer","Colonel","Brigadier General","Major General","Lieutenant General","General"};
-                for(int rank=1;rank<=9;rank++) f.Add(new("commanders.txt",p+17+(rank-1)*3,"Promotion"+rank,$"{ranks[rank-1]} promotion (YYYY-MM-DD; blank = unset)","date"));
-                foreach(var field in f.Where(f=>f.Kind!="date")) {
-                    // Preserve existing mod/game values outside the editor's permitted input range.
-                    if(field.Key is "Fame" or "Leadership" or "Initiative" or "Administration" or "Cunning")Number(l[field.Line]);
-                    else doc.Validate(field,l[field.Line]);
-                }
-                doc.Records.Add(new("Officers",id,side,l[p+3],f));
-            }
-        });
+        Domain("commanders.txt",doc.ParseOfficers);
         Domain("ships.dat",l=>{
             int n=Count(l,23);var ids=new HashSet<int>();
             for(int i=0;i<n;i++) {int p=1+23*i,id=Int(l[p]);if(!ids.Add(id))throw new InvalidDataException("Duplicate vessel ID.");
@@ -67,7 +52,25 @@ public sealed class ManagementDocument
         Domain("nations.dat",l=>doc.ParseNations(l));
         doc._lists=doc.Records.SelectMany(r=>r.Fields).Where(f=>f.Kind is "ids" or "policies").ToDictionary(f=>(f.File,f.Line));
         doc._saved=doc.Capture();
+        doc._officerSavedLines = doc._buffers.GetValueOrDefault("commanders.txt")?.CloneLines();
         return doc;
+    }
+    private void ParseOfficers(List<string> l)
+    {
+            int n=Count(l,66);var ids=new HashSet<int>();
+            for(int i=0;i<n;i++) {
+                int p=1+66*i,id=Int(l[p]),side=Int(l[p+4]);if(!ids.Add(id))throw new InvalidDataException("Duplicate officer ID.");
+                var f=new List<Field>{new("commanders.txt",p+5,"Experience","Experience (0–100)",Max:100),new("commanders.txt",p+11,"Veteran","Veteran","bool"),new("commanders.txt",p+12,"WestPoint","West Point","bool"),new("commanders.txt",p+55,"Political","Political officer","bool"),new("commanders.txt",p+13,"Branch","Historical branch (−1 none; 0 infantry, 1 cavalry, 2 artillery, 3 engineer, 4 navy)","integer",-1,4)};
+                foreach(var (offset,key) in new[]{(6,"Fame"),(7,"Leadership"),(8,"Initiative"),(9,"Administration"),(10,"Cunning")})f.Insert(f.Count-4,new("commanders.txt",p+offset,key,key+" (0–100)",Max:100));
+                string[] ranks={"Lieutenant","Captain / Navy commander","Major / Navy captain","Lieutenant Colonel / Navy flag officer","Colonel","Brigadier General","Major General","Lieutenant General","General"};
+                for(int rank=1;rank<=9;rank++) f.Add(new("commanders.txt",p+17+(rank-1)*3,"Promotion"+rank,$"{ranks[rank-1]} promotion (YYYY-MM-DD; blank = unset)","date"));
+                foreach(var field in f.Where(f=>f.Kind!="date")) {
+                    // Preserve existing mod/game values outside the editor's permitted input range.
+                    if(field.Key is "Fame" or "Leadership" or "Initiative" or "Administration" or "Cunning")Number(l[field.Line]);
+                    else Validate(field,l[field.Line]);
+                }
+                Records.Add(new("Officers",id,side,l[p+3],f));
+            }
     }
     static int Count(List<string> l,int size) {if(l.Count==0)throw new InvalidDataException("Empty file.");int n=Int(l[0]);if(n<0 || l.Count!=1L+(long)n*size)throw new InvalidDataException("Record size mismatch.");return n;}
     static int Int(string s)=>int.Parse(s,Inv);
@@ -153,11 +156,11 @@ public sealed class ManagementDocument
         if(Numeric("nations.dat",stock.OrderLine+1)<Numeric("nations.dat",stock.OrderLine+5))throw new InvalidDataException("Order total cannot be less than the quantity already delivered.");
         if(Number(_buffers["nations.dat"].Lines[stock.OrderLine+1])<=0 || Numeric("nations.dat",stock.OrderLine+3)<=0)throw new InvalidDataException("This weapon has no active order to resize. Increase its stock directly instead.");
     }}
-    public List<(string Name,TextFileBuffer Buffer,List<string> Lines)> Targets()=>_buffers.Where(x=>Unsaved().Any(k=>k.Key.File==x.Key)).Select(x=>{
+    public List<(string Name,TextFileBuffer Buffer,List<string> Lines)> Targets()=>_buffers.Where(x=>Unsaved().Any(k=>k.Key.File==x.Key) || x.Key=="commanders.txt" && OfficersStructureChanged).Select(x=>{
         var edits=Records.SelectMany(r=>r.Fields).Where(f=>f.File==x.Key && f.Kind is "ids" or "policies").Where(f=>_changes.ContainsKey((f.File,f.Line))).Select(f=>(Start:f.Line,Removed:1+Int(x.Value.Lines[f.Line])*(f.Kind=="policies"?2:1),Added:1+ListValue(f).Count));
         return (x.Key,x.Value.WithSplices(edits),WorkingLines(x.Key)!);
     }).ToList();
-    public void AcceptSaved() {_saved=Capture();}
+    public void AcceptSaved() {_saved=Capture(); _officerSavedLines = _buffers.GetValueOrDefault("commanders.txt")?.CloneLines();}
     public IEnumerable<string> Review()=>Unsaved().OrderBy(x=>x.Key.File).ThenBy(x=>x.Key.Line).Select(x=>{
         var record=Records.First(r=>r.Fields.Any(f=>f.File==x.Key.File && FieldLines(f).Contains(x.Key.Line)));
         return $"{record.Domain}: {record.Name} [ID {record.Id}] — {x.Key.File}, original line {x.Key.Line+1}: {_saved.GetValueOrDefault(x.Key)} → {x.Value}";

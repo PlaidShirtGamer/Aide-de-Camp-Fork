@@ -30,6 +30,8 @@ public sealed class TextFileBuffer
     public bool HasFinalNewLine { get; }
     public bool HasBom => _preamble.Length > 0;
 
+    public static TextFileBuffer Empty(string path) => new(path, new List<string> { "0" }, new UTF8Encoding(false, true), [], Environment.NewLine, true);
+
     public static TextFileBuffer Read(string path)
     {
         var bytes = File.ReadAllBytes(path);

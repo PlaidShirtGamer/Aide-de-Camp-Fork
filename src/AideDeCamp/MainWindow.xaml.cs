@@ -1613,7 +1613,7 @@ public partial class MainWindow : Window
     {
         _dirty = dirty;
         DirtyIndicator.Text = dirty ? "● UNSAVED" : string.Empty;
-        Title = "Aide-de-Camp 0.8.16 — GTIP Hierarchy Test Build" + (dirty ? " *" : "");
+        Title = "Aide-de-Camp 0.8.16 — GTIP Creation Test Build 2" + (dirty ? " *" : "");
     }
 
     protected override void OnClosing(CancelEventArgs e)

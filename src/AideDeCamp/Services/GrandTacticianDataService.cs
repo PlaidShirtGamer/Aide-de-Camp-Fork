@@ -31,7 +31,7 @@ public sealed partial class GrandTacticianDataService : IDisposable
     private TextFileBuffer? _pathBuffer;
     private string? _tempExtractDir;
 
-    private static readonly string[] MonitoredSaveFiles = { "regiments.dat", "paths.dat", "groups.dat", "garrisonrefs.dat", "IIPsTowns.dat", "scenario.dat", "version.dat", "commanders.txt", "nations.dat", "ships.dat", "weapons.dat", "shiptype.dat", "battledata.dat", "armygrouprefs.dat", "armygroups.dat" };
+    private static readonly string[] MonitoredSaveFiles = { "regiments.dat", "paths.dat", "groups.dat", "garrisonrefs.dat", "IIPsTowns.dat", "scenario.dat", "version.dat", "commanders.txt", "nations.dat", "ships.dat", "weapons.dat", "shiptype.dat", "battledata.dat", "armygrouprefs.dat", "armygroups.dat", "attributes.dat" };
 
     // GTCW State_ID is a fixed game enumeration, not a campaign-local sequence.
     // Keep this independent of regiment service-history prose: many campaign units
@@ -306,6 +306,7 @@ public sealed partial class GrandTacticianDataService : IDisposable
         var backupDirectory = CreateBackup(Directory.EnumerateFiles(SaveDirectory!, "*", SearchOption.TopDirectoryOnly).Select(Path.GetFileName).OfType<string>());
         var tempFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var replaced = new List<string>();
+        var installedPortraits = new List<string>();
         var writtenHashes = new Dictionary<string, string>();
 
         try
@@ -325,6 +326,7 @@ public sealed partial class GrandTacticianDataService : IDisposable
             // while temporary files were being prepared cannot be silently overwritten.
             EnsureFilesUnchanged();
 
+            InstallPendingPortraits(installedPortraits);
             foreach (var target in targets)
             {
                 var destination = Path.Combine(SaveDirectory!, target.Name);
@@ -335,6 +337,8 @@ public sealed partial class GrandTacticianDataService : IDisposable
         catch (Exception saveError)
         {
             var rollbackErrors = new List<Exception>();
+            foreach (var portrait in installedPortraits)
+                try { File.Delete(portrait); } catch (Exception error) { rollbackErrors.Add(error); }
             foreach (var name in replaced)
             {
                 var backup = Path.Combine(backupDirectory, name);
@@ -342,6 +346,7 @@ public sealed partial class GrandTacticianDataService : IDisposable
                 try
                 {
                     if (File.Exists(backup)) File.Copy(backup, destination, true);
+                    else if (_loadedFileHashes.GetValueOrDefault(name) == "<missing>") File.Delete(destination);
                     else rollbackErrors.Add(new IOException($"Rollback backup is missing for {name}: {backup}"));
                 }
                 catch (Exception rollbackError)
@@ -1158,6 +1163,7 @@ public sealed partial class GrandTacticianDataService : IDisposable
     private void Reset()
     {
         ResetCreation();
+        _pendingPortraits.Clear();
         _armyGroups.Clear();
         _commanderNations.Clear();
         _commanders.Clear();

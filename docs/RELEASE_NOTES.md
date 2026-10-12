@@ -1,3 +1,11 @@
+## GTIP creation test build 2 (test branch)
+
+- Create Unit now includes Army (when the selected game has GTIP installed) and Army Group. Army Groups can attach eligible independent commands, or start empty without a map icon.
+- New Officer creates an available, unassigned officer in the loaded save with faction, rank, dates, land branch, home state, traits and attributes.
+- Choose a custom PNG portrait with a preview. Save changes imports a uniquely named copy into the selected game's Avatar folder without overwriting existing portraits.
+- New officers appear in the officer roster and command creation choices immediately. Officer and Army Group creation support undo/redo, including across a Save boundary, and use the existing full-save backup and conflict checks.
+- Current scope is creating officers in saves. Base-game commander catalogs are not changed. Existing Army Group membership editing remains inspection-only; creation can assign currently independent commands.
+
 ## GTIP hierarchy test build (test branch)
 
 - Reads separate Army Group records and attachments from `armygroups.dat`, showing them above their attached commands in Tree and Roster.

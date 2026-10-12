@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:AideDeCamp.Models"
         xmlns:local="clr-namespace:AideDeCamp"
-        Title="Aide-de-Camp 0.8.16 — GTIP Hierarchy Test Build" Height="950" Width="1700" MinHeight="700" MinWidth="1150"
+        Title="Aide-de-Camp 0.8.16 — GTIP Creation Test Build 2" Height="950" Width="1700" MinHeight="700" MinWidth="1150"
         Background="#11161C" Foreground="#E8EDF2" KeyDown="Window_KeyDown">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
@@ -132,7 +132,7 @@
               <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,4,0"/>
               <TextBox x:Name="SearchBox" Width="200" VerticalContentAlignment="Center" TextChanged="SearchBox_TextChanged" KeyDown="SearchBox_KeyDown"/>
               <Button x:Name="EditSelectedButton" Content="Edit Selected" Click="EditSelected_Click" IsEnabled="False" Margin="8,3,3,3"/>
-              <Button Content="Create Unit…" Click="CreateUnit_Click" Margin="3"/><Button x:Name="EditSuppliesButton" Content="Edit Supplies" Click="EditSupplies_Click" IsEnabled="False" Margin="3"/>
+              <Button Content="New Officer…" Click="CreateOfficer_Click" Margin="3"/><Button Content="Create Unit…" Click="CreateUnit_Click" Margin="3"/><Button x:Name="EditSuppliesButton" Content="Edit Supplies" Click="EditSupplies_Click" IsEnabled="False" Margin="3"/>
               <StackPanel x:Name="LocalViews" Orientation="Horizontal">
                 <Button x:Name="FieldTreeButton" Content="Tree" Click="OobView_Click"/>
                 <Button x:Name="FieldRosterButton" Content="Roster" Click="RosterView_Click"/>

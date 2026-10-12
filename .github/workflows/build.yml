@@ -29,6 +29,8 @@ jobs:
         run: dotnet run --project tests/UiVerification -c Release --no-build -- --tree-performance artifacts/tree-performance
       - name: Verify Army Group tree
         run: dotnet run --project tests/UiVerification -c Release --no-build -- --army-group-ui artifacts/army-group-ui
+      - name: Verify command and officer creation dialogs
+        run: dotnet run --project tests/UiVerification -c Release --no-build -- --new-creation-ui artifacts/new-creation-ui
       - name: Package
         run: ./scripts/Package.ps1
       - name: Verify extracted package

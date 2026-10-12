@@ -22,7 +22,7 @@ public sealed partial class GrandTacticianDataService
     {
         if (_creationSaved.ContainsKey(file)) return;
         if (file is not ("groups.dat" or "regiments.dat" or "paths.dat"))
-            _creationCompanions.Add(file, TextFileBuffer.Read(Path.Combine(SaveDirectory!, file)));
+            _creationCompanions.Add(file, File.Exists(Path.Combine(SaveDirectory!, file)) ? TextFileBuffer.Read(Path.Combine(SaveDirectory!, file)) : TextFileBuffer.Empty(Path.Combine(SaveDirectory!, file)));
         _creationSaved.Add(file, CreationBuffer(file).CloneLines());
     }
     private void ResetCreation() { _creationSaved.Clear(); _creationCompanions.Clear(); _sessionCreated.Clear(); _creationTowns = null; _creationStates = null; }
@@ -52,7 +52,7 @@ public sealed partial class GrandTacticianDataService
 
     public IReadOnlyList<CreationOfficer> GetCreationOfficers()
     {
-        var lines = TextFileBuffer.Read(Path.Combine(SaveDirectory!, "commanders.txt")).Lines;
+        var lines = Management?.WorkingLines("commanders.txt") ?? TextFileBuffer.Read(Path.Combine(SaveDirectory!, "commanders.txt")).Lines;
         int count = CreationRecords.FixedCount(lines, 66, "commanders.txt");
         return Enumerable.Range(0, count).Select(i => {
             int s = 1 + 66 * i;
@@ -98,7 +98,7 @@ public sealed partial class GrandTacticianDataService
     {
         var seen = new HashSet<int>(); var current = group;
         while (true) {
-            if (!seen.Add(current.GroupId) || current.Nation != faction || current.UnitTier is < 14 or > 16) return false;
+            if (!seen.Add(current.GroupId) || current.Nation != faction || (current.UnitTier is < 14 or > 16 && !(current.UnitTier == 18 && SupportsGtipArmies))) return false;
             if (current.ParentId < 0) return true;
             if (!_groups.TryGetValue(current.ParentId, out current!)) return false;
         }
@@ -106,6 +106,7 @@ public sealed partial class GrandTacticianDataService
 
     public CreationAssessment AssessCreation(CreationRequest request)
     {
+        if (request.Blueprint.ArmyGroup) return AssessArmyGroup(request);
         var errors = new List<string>(); var warnings = new List<string>(); var b = request.Blueprint;
         try {
             if (SaveDirectory is null || IsReadOnlySave) throw new InvalidDataException("Open an extracted campaign save first.");
@@ -121,7 +122,7 @@ public sealed partial class GrandTacticianDataService
             if (b.Faction is not (0 or 1)) errors.Add("Choose Union or Confederacy.");
             if (string.IsNullOrWhiteSpace(b.Name) || b.Name.Length > 200 || b.Name.Any(c => char.IsControl(c))) errors.Add("Enter a name without control characters (up to 200 characters).");
             if (_units.Any(u => u.Name == b.Name) || _groups.Values.Any(g => g.Name == b.Name)) errors.Add("Use an available name; this name already exists in the save.");
-            if (b.Headquarters ? b.NativeTier is < 14 or > 16 : b.NativeTier is < 10 or > 13) errors.Add("The native tier does not belong to this kind of unit.");
+            if (b.Headquarters ? (b.NativeTier is < 14 or > 16 && !(b.NativeTier == 18 && SupportsGtipArmies)) : b.NativeTier is < 10 or > 13) errors.Add("The native tier does not belong to this kind of unit.");
             GroupNode? parent = null;
             if (request.Placement.ParentId is int id) {
                 if (!_groups.TryGetValue(id, out parent) || !IsCreationParent(parent, b.Faction)) errors.Add("The parent must be an existing land HQ in the selected faction.");
@@ -138,7 +139,7 @@ public sealed partial class GrandTacticianDataService
             var officer = GetCreationOfficers().SingleOrDefault(o => o.Id == b.CommanderId);
             if (officer is null || officer.Faction != b.Faction) errors.Add("Select an existing commander in this faction.");
             else {
-                if (_groups.Values.Any(g => g.CommanderId == officer.Id) || _units.Any(u => u.CommanderId == officer.Id)) errors.Add("That commander is already assigned. Select an unused commander.");
+                if (AssignedCommanderIds().Contains(officer.Id)) errors.Add("That commander is already assigned. Select an unused commander.");
                 if (!officer.Active || officer.Status != 0) warnings.Add($"{officer.Name}: saved status {officer.Status}, active flag {officer.Active}; availability needs game confirmation.");
                 warnings.Add($"Commander assignment: {officer.Name}, saved branch {officer.Branch}, rank {officer.Rank}. ADC checks faction and uniqueness; this rank/branch combination has not been game-tested.");
             }
@@ -209,6 +210,7 @@ public sealed partial class GrandTacticianDataService
     public OobNode CreateUnit(CreationRequest request, bool confirmed, EditSession session)
     {
         EnsureFilesUnchanged();
+        if (request.Blueprint.ArmyGroup) return CreateArmyGroup(request, confirmed, session);
         var check = AssessCreation(request);
         if (!check.CanCreate) throw new InvalidDataException(string.Join("\n", check.Errors));
         if (check.Confirmations.Count > 0 && !confirmed) throw new InvalidOperationException("Review and confirm the creation warnings first.");
@@ -278,7 +280,8 @@ public sealed partial class GrandTacticianDataService
     }
     private void ValidateCreationWrite(IReadOnlyList<string> regiments, IReadOnlyList<string> groups, IReadOnlyList<string>? paths)
     {
-        if (_creationSaved.Count == 0) return;
+        ValidateAdditionalCreation();
+        if (!_creationSaved.ContainsKey("groups.dat") && !_creationSaved.ContainsKey("regiments.dat")) return;
         int gc = CreationRecords.FixedCount(groups, 32, "groups.dat"), uc = CreationRecords.FixedCount(regiments, 39, "regiments.dat");
         CreationRecords.ValidateFieldTypes(regiments, false); CreationRecords.ValidateFieldTypes(groups, true);
         ValidateArmyReferences(CreationBuffer("armygrouprefs.dat").Lines, gc, uc);

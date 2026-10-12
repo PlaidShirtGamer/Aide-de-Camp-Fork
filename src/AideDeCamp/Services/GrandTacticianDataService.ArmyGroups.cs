@@ -12,8 +12,11 @@ public sealed partial class GrandTacticianDataService
     private void LoadArmyGroups()
     {
         var path = Path.Combine(SaveDirectory!, "armygroups.dat");
-        if (!File.Exists(path)) return;
-        _armyGroups.AddRange(ArmyGroupDisplay.Parse(TextFileBuffer.Read(path).Lines, _groups, _commanderNations));
+        _armyGroups.Clear();
+        foreach (var g in _groups.Values) g.ArmyGroupName = null;
+        if (!File.Exists(path) && !_creationCompanions.ContainsKey("armygroups.dat")) return;
+        var lines = _creationCompanions.TryGetValue("armygroups.dat", out var staged) ? staged.Lines : TextFileBuffer.Read(path).Lines;
+        _armyGroups.AddRange(ArmyGroupDisplay.Parse(lines, _groups, _commanderNations));
         foreach (var entry in _armyGroups)
         {
             var group = entry.Source;

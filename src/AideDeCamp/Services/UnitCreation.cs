@@ -10,6 +10,8 @@ public sealed record CreationPerk(int Id = -1, int Level = 0, double Progress = 
 public sealed record CreationUniform(int Faction, string Coat, string Trousers, string Variation);
 public sealed record UnitBlueprint
 {
+    public bool ArmyGroup { get; init; }
+    public int[] AttachedCommandIds { get; init; } = [];
     public bool Headquarters { get; init; }
     public int Faction { get; init; }
     public string Name { get; init; } = "";

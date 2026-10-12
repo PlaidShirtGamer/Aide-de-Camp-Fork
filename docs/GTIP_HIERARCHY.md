@@ -13,3 +13,9 @@ Regimental-scale presentation maps the GTIP Army HQ symbol 18 to Army; the separ
 Verification includes synthetic hierarchy, malformed-reference, no-op save, HQ rename round-trip, byte preservation, and external-change checks. A WPF test renders all six levels and checks inspection-only controls; the existing service/UI regression suites also run. A read-only audit of a local game save resolved three Army Groups and one GTIP Army. In-game acceptance of editor-written changes remains a separate manual check.
 
 Run the focused UI check with `dotnet run --project tests/UiVerification -c Release -- --army-group-ui artifacts/army-group-ui`. The service suite runs the Army Group checks automatically. `tests/Verification --army-group-save <save-directory>` performs a read-only local-save audit (via `dotnet run --project tests/Verification -c Release -- --army-group-save <save-directory>`).
+
+## Creation in test build 2
+
+Army Group creation appends a separate six-field record and updates the commander-assignment section of `armygrouprefs.dat` for selected independent commands. Undo reverses both. Army HQ creation uses native symbol 18 and a normal independent town deployment; this choice is enabled only when the selected installation contains GTIP.Runtime.dll. Existing Army Group membership and commander edits remain inspection-only.
+
+New officer creation is described in [CREATE_OFFICERS](CREATE_OFFICERS.md). Synthetic rollback tests cover new files absent from the original save. An integration test creates two officers, an Army and an Army Group in a disposable copy of a local campaign, then saves/reloads and undoes all creations back to the original file bytes. This is a storage check; loading the resulting formations in game is still required for acceptance.

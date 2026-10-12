@@ -139,6 +139,7 @@ public partial class MainWindow
             var navalCommanders = _data.Groups.Values.Where(g => g.UnitTier == 17).Select(g => g.CommanderId).ToHashSet();
             var assignments = _data.Groups.Values.Select(g => (g.CommanderId, g.Name))
                 .Concat(_data.Units.Select(u => (u.CommanderId, u.Name)))
+                .Concat(_data.ArmyGroups.Select(a => (a.Source.CommanderId, a.Source.Name)))
                 .GroupBy(item => item.CommanderId)
                 .ToDictionary(group => group.Key, group => string.Join("; ", group.Select(item => item.Name)));
             ManagementGrid.ItemsSource=_management.Officers.Where(o=>o.Side==_nation && Match(o.Name)).Select(o=>new {

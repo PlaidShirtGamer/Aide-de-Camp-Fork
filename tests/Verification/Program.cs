@@ -6,7 +6,9 @@ using AideDeCamp.Services;
 int checks = 0;
 void Check(bool test, string label) { if (!test) throw new Exception("FAILED: " + label); checks++; Console.WriteLine("PASS " + label); }
 if (args.Length == 2 && args[0] == "--army-group-save") { await ArmyGroupChecks.AuditSave(args[1], Check); return; }
+if (args.Length == 3 && args[0] == "--new-command-copy") { await NewCreationChecks.RealCopy(args[1], args[2], Check); return; }
 await ArmyGroupChecks.Run(Check);
+await NewCreationChecks.Run(Check);
 if (args.Length == 3 && args[0] == "--creation-write") { try { await CreationChecks.Run(args[1], args[2], Check); Console.WriteLine($"Creation checks passed: {checks}"); } catch (Exception e) { Console.Error.WriteLine(e); Environment.ExitCode = 1; } return; }
 if (args.Length == 4 && args[0] == "--creation-batch") { try { await CreationBatch.Build(args[1], args[2], args[3]); } catch (Exception e) { Console.Error.WriteLine(e); Environment.ExitCode = 1; } return; }
 if (args.Length == 4 && args[0] == "--creation-resave") { try { await CreationBatch.AuditResave(args[1], args[2], args[3], Check); Console.WriteLine($"Game resave checks passed: {checks}"); } catch (Exception e) { Console.Error.WriteLine(e); Environment.ExitCode = 1; } return; }
