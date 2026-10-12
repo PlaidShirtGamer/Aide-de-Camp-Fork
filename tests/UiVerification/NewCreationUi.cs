@@ -111,8 +111,7 @@ internal static partial class Program
         Check(Field<int>(main,"_nation")==1 && ((TextBox)main.FindName("SearchBox")).Text=="","Warning jump switches faction and clears a hiding search");
         typeof(MainWindow).GetMethod("NavigateToValidationTarget",BindingFlags.NonPublic|BindingFlags.Instance)!.Invoke(main,[hq]);
         Check(ReferenceEquals(Field<OobNode>(main,"_selectedNode"),hq),"HQ navigation remains distinct from combat unit with the same numeric ID");
-        typeof(MainWindow).GetField("_allowClose",BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(main,true);
-        main.Close();
+        CloseFixture(main);
 
         Write("groups.dat",new[]{"1"}.Concat(CreationRecords.Group(0,new UnitBlueprint {Headquarters=true,Name="Created Army",CommanderId=0,NativeTier=18,Perks=[new(),new(),new(),new()]},null)));
         Write("armygroups.dat",["2","0","First Army Group","1","0000;","18","001-002-003","1","Second Army Group","2","","18","004-005-006"]);
@@ -138,7 +137,7 @@ internal static partial class Program
         args.RoutedEvent=DragDrop.DropEvent;
         typeof(MainWindow).GetMethod("OobDrop",flags)!.Invoke(dragWindow,[dragWindow,args]);Flush(dragWindow);
         Check(args.Handled && dragData.ArmyGroups[1].AttachedGroupIds.Contains(0) && army.ParentId==-1,"Actual OOB drop handler stages Army Group membership without changing native parent");
-        Field<EditSession>(dragWindow,"_editSession").Undo(out _);dragWindow.Close();
+        Field<EditSession>(dragWindow,"_editSession").Undo(out _);CloseFixture(dragWindow);
 
         Write("groups.dat",new[]{"2"}.Concat(CreationRecords.Group(0,new UnitBlueprint {Headquarters=true,Name="New Army",CommanderId=0,NativeTier=18,Perks=[new(),new(),new(),new()]},null)).Concat(CreationRecords.Group(1,new UnitBlueprint {Headquarters=true,Name="Old Corps",CommanderId=3,NativeTier=16,Perks=[new(),new(),new(),new()]},null)));
         Write("armygroups.dat",["1","0","Army Group","1","0000;0001;","18","001-002-003"]);
@@ -162,7 +161,16 @@ internal static partial class Program
         typeof(MainWindow).GetMethod("ShowGroup",flags)!.Invoke(deleteWindow,[corps]);
         typeof(MainWindow).GetMethod("RedoWorkingEdit",flags)!.Invoke(deleteWindow,null);
         Check(deleteData.Groups.Count==1 && typeof(MainWindow).GetField("_selectedNode",flags)!.GetValue(deleteWindow) is null,"Redo deletion clears selection of the removed HQ");
-        Field<EditSession>(deleteWindow,"_editSession").Undo(out _);Field<EditSession>(deleteWindow,"_editSession").Undo(out _);deleteWindow.Close();
+        Field<EditSession>(deleteWindow,"_editSession").Undo(out _);Field<EditSession>(deleteWindow,"_editSession").Undo(out _);CloseFixture(deleteWindow);
+
+        // These windows own synthetic data and are being disposed, not testing the
+        // production unsaved-changes prompt. Undo does not reset every UI draft.
+        void CloseFixture(MainWindow window)
+        {
+            typeof(MainWindow).GetField("_allowClose",BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(window,true);
+            window.Close();
+            Check(!window.IsVisible,"Synthetic fixture closes without an interactive save prompt");
+        }
 
         void Capture(Window window,string name)
         {
