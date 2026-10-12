@@ -11,7 +11,7 @@ namespace AideDeCamp.Services;
 public static class PathRecordParser
 {
     public sealed record Record(string Name, string Abbreviation, int UnitType, int CommanderId,
-        int Start, int End, int TransferLine, int? SupplyStockLine, IReadOnlyList<double>? SupplyStock);
+        int Start, int End, int TransferLine, int? SupplyStockLine, IReadOnlyList<double>? SupplyStock, IReadOnlyList<int>? ReferenceStarts = null);
 
     public static IReadOnlyList<Record> Parse(IReadOnlyList<string> lines, bool strictFields = false)
     {
@@ -21,6 +21,7 @@ public static class PathRecordParser
         for (var index = 0; index < count; index++)
         {
             var start = cursor.Position;
+            cursor.ReferenceStarts.Clear();
             var name = cursor.Text();
             var abbreviation = cursor.Text();
             var type = cursor.Int("unit type");
@@ -71,7 +72,7 @@ public static class PathRecordParser
             cursor.Text(); cursor.Integers(2, "army group commanders");
             cursor.Numbers(2, "embarkation times"); cursor.Booleans(1, "enemy fleet"); cursor.Numbers(1, "embarkation update"); cursor.Booleans(2, "rout and commander-campaign flags"); cursor.Numbers(1, "coordination time");
             records.Add(new Record(name, abbreviation, type, commander, start, cursor.Position,
-                transferLine, supplyStockLine, supplyStock));
+                transferLine, supplyStockLine, supplyStock, cursor.ReferenceStarts.ToArray()));
         }
         if (cursor.Position != lines.Count)
             throw new InvalidDataException($"paths.dat contains {lines.Count - cursor.Position} trailing lines after {count} records.");
@@ -83,7 +84,8 @@ public static class PathRecordParser
         public void Numbers(int count, string field) { if (!strict) { Skip(count, field); return; } for (int i = 0; i < count; i++) Finite(field); }
         public void Integers(int count, string field) { if (!strict) { Skip(count, field); return; } for (int i = 0; i < count; i++) Int(field); }
         public void Booleans(int count, string field) { if (!strict) { Skip(count, field); return; } for (int i = 0; i < count; i++) if (!bool.TryParse(Text(), out _)) throw new InvalidDataException($"paths.dat {field} is not a Boolean."); }
-        public void Reference() { Text(); Text(); Integers(2, "unit reference"); }
+        public List<int> ReferenceStarts { get; } = new();
+        public void Reference() { ReferenceStarts.Add(Position); Text(); Text(); Integers(2, "unit reference"); }
         public int Position { get; private set; }
 
         public string Text()

@@ -139,6 +139,30 @@ internal static partial class Program
         Check(args.Handled && dragData.ArmyGroups[1].AttachedGroupIds.Contains(0) && army.ParentId==-1,"Actual OOB drop handler stages Army Group membership without changing native parent");
         Field<EditSession>(dragWindow,"_editSession").Undo(out _);dragWindow.Close();
 
+        Write("groups.dat",new[]{"2"}.Concat(CreationRecords.Group(0,new UnitBlueprint {Headquarters=true,Name="New Army",CommanderId=0,NativeTier=18,Perks=[new(),new(),new(),new()]},null)).Concat(CreationRecords.Group(1,new UnitBlueprint {Headquarters=true,Name="Old Corps",CommanderId=3,NativeTier=16,Perks=[new(),new(),new(),new()]},null)));
+        Write("armygroups.dat",["1","0","Army Group","1","0000;0001;","18","001-002-003"]);
+        Write("armygrouprefs.dat",["2","1","1","2","0","True","1","True","0"]);
+        Write("paths.dat",["0"]);
+        var deleteWindow=new MainWindow(true);var deleteData=Field<GrandTacticianDataService>(deleteWindow,"_data");deleteData.LoadAsync(root,config).GetAwaiter().GetResult();
+        typeof(MainWindow).GetMethod("RebuildSide",flags)!.Invoke(deleteWindow,[true]);deleteWindow.Show();Flush(deleteWindow);
+        var corps=deleteData.Groups[1];var newArmy=deleteData.Groups[0];
+        void SetDeleteField(string name,object value)=>typeof(MainWindow).GetField(name,flags)!.SetValue(deleteWindow,value);
+        SetDeleteField("_activeGroupDrag",corps);SetDeleteField("_dropParent",newArmy);SetDeleteField("_dropIndex",0);SetDeleteField("_beforeDrag",Field<DisplayOobModel>(deleteWindow,"_displayModel"));
+        var corpsPayload=new DataObject();corpsPayload.SetData(dragType,Activator.CreateInstance(dragType,corps)!);
+        var drop=(DragEventArgs)typeof(DragEventArgs).GetConstructors(flags).Single().Invoke([corpsPayload,DragDropKeyStates.LeftMouseButton,DragDropEffects.Move,deleteWindow,new Point(0,0)]);
+        drop.RoutedEvent=DragDrop.DropEvent;typeof(MainWindow).GetMethod("OobDrop",flags)!.Invoke(deleteWindow,[deleteWindow,drop]);
+        Check(drop.Handled && corps.ParentId==0 && corps.ArmyGroupName is null,"Actual drop attaches existing Army Group Corps to new Army");
+        var deletionTimer=new DispatcherTimer {Interval=TimeSpan.FromMilliseconds(50)};
+        deletionTimer.Tick+=(_,_)=>{var review=Application.Current.Windows.OfType<DeleteFormationWindow>().FirstOrDefault();if(review is null)return;deletionTimer.Stop();Flush(review);Capture(review,"delete-formation.png");Descendants(review).OfType<Button>().Single(b=>b.Content?.ToString()=="Delete formation").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));};
+        deletionTimer.Start();typeof(MainWindow).GetMethod("DeleteUnit_Click",flags)!.Invoke(deleteWindow,[new MenuItem {DataContext=corps},new RoutedEventArgs()]);deletionTimer.Stop();Flush(deleteWindow);
+        Check(deleteData.Groups.Count==1 && Field<EditSession>(deleteWindow,"_editSession").CanUndo,"Delete context action opens review and stages HQ deletion");
+        typeof(MainWindow).GetMethod("UndoWorkingEdit",flags)!.Invoke(deleteWindow,null);
+        Check(deleteData.Groups.Count==2 && corps.ParentId==0,"UI undo restores deleted Corps under Army");
+        typeof(MainWindow).GetMethod("ShowGroup",flags)!.Invoke(deleteWindow,[corps]);
+        typeof(MainWindow).GetMethod("RedoWorkingEdit",flags)!.Invoke(deleteWindow,null);
+        Check(deleteData.Groups.Count==1 && typeof(MainWindow).GetField("_selectedNode",flags)!.GetValue(deleteWindow) is null,"Redo deletion clears selection of the removed HQ");
+        Field<EditSession>(deleteWindow,"_editSession").Undo(out _);Field<EditSession>(deleteWindow,"_editSession").Undo(out _);deleteWindow.Close();
+
         void Capture(Window window,string name)
         {
             var image=new RenderTargetBitmap((int)window.ActualWidth,(int)window.ActualHeight,96,96,PixelFormats.Pbgra32);image.Render(window);

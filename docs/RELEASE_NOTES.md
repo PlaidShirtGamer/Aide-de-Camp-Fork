@@ -1,3 +1,11 @@
+# Aide-de-Camp 0.8.20
+
+- Existing Corps assigned to an Army Group can now be dragged beneath a higher Army. The move removes their former direct Army Group membership in the same undoable action.
+- Delete a land combat unit, HQ, or Army Group from its context menu or the Delete button. A review explains the result; deletion stays staged until Save changes and supports Ctrl+Z.
+- Deleting an HQ reattaches immediate children to its parent, preserving deeper branches. Deleting a root HQ promotes its child commands to its Army Group or independent status; deleting an Army Group leaves its commands independent. A root HQ with direct combat units must first be attached to a higher land HQ.
+- Deletion preserves officers, remaps saved formation IDs and related deployment/membership records, and removes the deleted runtime path and references. Combat manpower/equipment are not refunded.
+- Validation: 271 service checks, 599 broad WPF checks, and 34 creation/drag/deletion UI checks passed. In-game acceptance of deleted formations remains to be tested on a copied campaign.
+
 # Aide-de-Camp 0.8.19
 
 - Officer birth-date and date-of-rank popups use a dark, high-contrast calendar, including selected days and month/year navigation.

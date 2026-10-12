@@ -90,6 +90,17 @@ public sealed partial class ManagementDocument
     public string Line(string file,int line)=>_changes.TryGetValue((file,line),out var value)?value:Baseline(file,line);
     public List<string> ListValue(Field field)=>JsonSerializer.Deserialize<List<string>>(Value(field))!;
     public double Numeric(string file,int line)=>Number(Line(file,line));
+    internal void UpdateShipFleetReferences(IReadOnlyList<string> lines)
+    {
+        if (!_buffers.TryGetValue("ships.dat", out var buffer)) return;
+        var current=buffer.CloneLines();
+        if(current.Count!=lines.Count) throw new InvalidDataException("Ship record count changed during hierarchy editing.");
+        for(int i=0;i<int.Parse(lines[0]);i++) {
+            int p=3+i*23; current[p]=lines[p];
+            if(_loaded.TryGetValue("ships.dat",out var loaded))loaded[p]=lines[p];
+        }
+        buffer.ReplaceLines(current);
+    }
     public List<string>? OriginalLines(string file)=>_loaded.TryGetValue(file,out var l)?new(l):null;
     public List<string>? WorkingLines(string file) {
         if(!_buffers.TryGetValue(file,out var b))return null;var l=b.CloneLines();foreach(var (key,value) in _changes.Where(x=>x.Key.File==file).OrderByDescending(x=>x.Key.Line)) {

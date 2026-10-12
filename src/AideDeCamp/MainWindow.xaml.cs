@@ -1572,9 +1572,7 @@ public partial class MainWindow : Window
     private void UndoWorkingEdit()
     {
         if (!_editSession.Undo(out var description)) return;
-        if (_selectedUnit is not null && !_data.Units.Contains(_selectedUnit) || _selectedNode is GroupNode removed && !removed.IsArmyGroup && !_data.Groups.ContainsKey(removed.GroupId)) {
-            ClearBatchSelection(); ClearDetails(); _selectedUnit = null; _selectedNode = null;
-        }
+        ClearRemovedSelection();
         RebuildSide();
         if (_selectedUnit is not null) ShowUnit(_selectedUnit);
         else if (_selectedNode is GroupNode selectedGroup) ShowGroup(selectedGroup);
@@ -1586,6 +1584,7 @@ public partial class MainWindow : Window
     private void RedoWorkingEdit()
     {
         if (!_editSession.Redo(out var description)) return;
+        ClearRemovedSelection();
         RebuildSide();
         if (_selectedUnit is not null) ShowUnit(_selectedUnit);
         else if (_selectedNode is GroupNode selectedGroup) ShowGroup(selectedGroup);
@@ -1613,7 +1612,7 @@ public partial class MainWindow : Window
     {
         _dirty = dirty;
         DirtyIndicator.Text = dirty ? "● UNSAVED" : string.Empty;
-        Title = "Aide-de-Camp 0.8.19" + (dirty ? " *" : "");
+        Title = "Aide-de-Camp 0.8.20" + (dirty ? " *" : "");
     }
 
     protected override void OnClosing(CancelEventArgs e)

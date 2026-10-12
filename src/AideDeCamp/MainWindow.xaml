@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:AideDeCamp.Models"
         xmlns:local="clr-namespace:AideDeCamp"
-        Title="Aide-de-Camp 0.8.19" Height="950" Width="1700" MinHeight="700" MinWidth="1150"
+        Title="Aide-de-Camp 0.8.20" Height="950" Width="1700" MinHeight="700" MinWidth="1150"
         Background="#11161C" Foreground="#E8EDF2" KeyDown="Window_KeyDown">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
@@ -31,7 +31,7 @@
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <local:NatoCounterControl x:Name="NatoCounterHost" Grid.Row="0" Width="102" Height="70" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,-9" UnitType="{Binding NatoUnitType}" UnitTier="{Binding PresentationTier}" IsHeadquarters="True" StrengthAlertColor="#7EAAB2" Panel.ZIndex="2"/>
                 <Border x:Name="CardSurface" Grid.Row="1" Background="{StaticResource ControlBrush}" BorderBrush="{StaticResource EdgeBrush}" BorderThickness="1" CornerRadius="5" Padding="9">
-                    <Border.ContextMenu><ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}"><MenuItem Header="Create unit here…" Click="CreateUnit_Click"/><Separator/><MenuItem Header="View in Roster" Click="ViewGroupInRoster_Click"/><MenuItem Header="Focus in OOB" Click="FocusNode_Click"/></ContextMenu></Border.ContextMenu>
+                    <Border.ContextMenu><ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}"><MenuItem Header="Create unit here…" Click="CreateUnit_Click"/><MenuItem Header="Delete formation…" Click="DeleteUnit_Click"/><Separator/><MenuItem Header="View in Roster" Click="ViewGroupInRoster_Click"/><MenuItem Header="Focus in OOB" Click="FocusNode_Click"/></ContextMenu></Border.ContextMenu>
                     <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                         <DockPanel x:Name="AlwaysIdentity">
                             <Button DockPanel.Dock="Left" Content="{Binding CollapseGlyph}" Width="26" Height="24" Padding="0" Margin="0,0,7,0" Click="ToggleGroup_Click" ToolTip="Collapse/restore command"/>
@@ -56,7 +56,7 @@
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <local:NatoCounterControl x:Name="NatoCounterHost" Grid.Row="0" Width="92" Height="70" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,-9" UnitType="{Binding UnitType}" UnitTier="{Binding PresentationTier}" IsHeadquarters="False" StrengthAlertColor="{Binding ReadinessBrush}" Panel.ZIndex="2"/>
                 <Border x:Name="CardSurface" Grid.Row="1" Background="{Binding CardBackground}" BorderBrush="{Binding CardBorder}" BorderThickness="1" CornerRadius="5" Padding="9">
-                    <Border.ContextMenu><ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}"><MenuItem Header="Create sibling unit…" Click="CreateUnit_Click"/><Separator/><MenuItem Header="View in Roster" Click="ViewInRoster_Click"/><MenuItem Header="Focus in OOB" Click="FocusNode_Click"/></ContextMenu></Border.ContextMenu>
+                    <Border.ContextMenu><ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}"><MenuItem Header="Create sibling unit…" Click="CreateUnit_Click"/><MenuItem Header="Delete formation…" Click="DeleteUnit_Click"/><Separator/><MenuItem Header="View in Roster" Click="ViewInRoster_Click"/><MenuItem Header="Focus in OOB" Click="FocusNode_Click"/></ContextMenu></Border.ContextMenu>
                     <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                         <DockPanel x:Name="AlwaysIdentity">
 
@@ -132,7 +132,7 @@
               <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,4,0"/>
               <TextBox x:Name="SearchBox" Width="200" VerticalContentAlignment="Center" TextChanged="SearchBox_TextChanged" KeyDown="SearchBox_KeyDown"/>
               <Button x:Name="EditSelectedButton" Content="Edit Selected" Click="EditSelected_Click" IsEnabled="False" Margin="8,3,3,3"/>
-              <Button Content="New Officer…" Click="CreateOfficer_Click" Margin="3"/><Button Content="Create Unit…" Click="CreateUnit_Click" Margin="3"/><Button x:Name="EditSuppliesButton" Content="Edit Supplies" Click="EditSupplies_Click" IsEnabled="False" Margin="3"/>
+              <Button Content="New Officer…" Click="CreateOfficer_Click" Margin="3"/><Button Content="Create Unit…" Click="CreateUnit_Click" Margin="3"/><Button Content="Delete…" Click="DeleteUnit_Click" Margin="3"/><Button x:Name="EditSuppliesButton" Content="Edit Supplies" Click="EditSupplies_Click" IsEnabled="False" Margin="3"/>
               <StackPanel x:Name="LocalViews" Orientation="Horizontal">
                 <Button x:Name="FieldTreeButton" Content="Tree" Click="OobView_Click"/>
                 <Button x:Name="FieldRosterButton" Content="Roster" Click="RosterView_Click"/>
@@ -199,7 +199,7 @@
                               AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Extended" SelectionUnit="CellOrRowHeader" SelectedCellsChanged="RosterCellsChanged" PreviewKeyDown="RosterClipboardKeyDown" GridLinesVisibility="All" HorizontalGridLinesBrush="#28343F" VerticalGridLinesBrush="#28343F"
                               HeadersVisibility="All" CanUserSortColumns="True" Sorting="RosterGrid_Sorting" SelectionChanged="RosterGrid_SelectionChanged" MouseDoubleClick="RosterGrid_MouseDoubleClick"
                               EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
-                        <DataGrid.ContextMenu><ContextMenu><MenuItem Header="Create unit…" Tag="RosterCreate" Click="CreateUnit_Click"/><Separator/><MenuItem Header="View in OOB" Click="RosterViewInOob_Click"/><MenuItem Header="Open Detail Card" Click="RosterOpenDetail_Click"/><MenuItem Header="Show Changes for Unit" Click="RosterShowChanges_Click"/><Separator/><MenuItem Header="Edit Selected" Click="EditSelected_Click"/></ContextMenu></DataGrid.ContextMenu>
+                        <DataGrid.ContextMenu><ContextMenu><MenuItem Header="Create unit…" Tag="RosterCreate" Click="CreateUnit_Click"/><MenuItem Header="Delete formation…" Tag="RosterDelete" Click="DeleteUnit_Click"/><Separator/><MenuItem Header="View in OOB" Click="RosterViewInOob_Click"/><MenuItem Header="Open Detail Card" Click="RosterOpenDetail_Click"/><MenuItem Header="Show Changes for Unit" Click="RosterShowChanges_Click"/><Separator/><MenuItem Header="Edit Selected" Click="EditSelected_Click"/></ContextMenu></DataGrid.ContextMenu>
                         <DataGrid.Columns>
                             <DataGridTemplateColumn Header="UNIT / COMMAND" SortMemberPath="Name" Width="240">
                                 <DataGridTemplateColumn.CellTemplate><DataTemplate>

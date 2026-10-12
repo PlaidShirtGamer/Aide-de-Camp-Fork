@@ -321,3 +321,14 @@ features are not presented as implemented in this pass.
   all five combat units retained their requested four stock values. Union choices
   retained; opposing commanders and its available perk choice were changed by the game.
   Confederate visual confirmation remains unavailable because of fog of war.
+
+
+## Formation deletion (0.8.20)
+
+Right-click a formation and choose **Delete formation**, or select it and click **Delete**. Review the reassignment before confirming. Save changes uses the existing full-save backup transaction. Ctrl+Z restores the deletion, including after saving.
+
+HQ children move to the deleted HQ's parent without flattening deeper branches. Root HQ child commands keep their Army Group membership or become independent and retain campaign deployment. A root HQ with directly attached combat units requires attachment to a higher land HQ first: combat units cannot be saved without a land parent. Army Group deletion leaves commands independent. Officers remain in the catalog; combat strength and equipment are removed without refunds.
+
+Version-1.142 mapping evidence: the game's ImportExportUnitData.CreateUnitFiles writes contiguous groups.dat (32 fields) and regiments.dat (39 fields) IDs consumed by BattleUnits' array-based loaders. Deletion renumbers surviving records and parent references. Armygrouprefs.dat assignments follow record order; its indexed HQ/unit flags are retained. Armygroups.dat's six-field records list native HQ IDs. Battledata.dat has a 43-line header, count at 42, 15-field deployment records (ID at 0; HQ flag at 13), and an economy tail; side commanding-HQ references are header fields 22 and 31. Garrisonrefs.dat has eight-field records with the four-field identity at offsets 4–7. Paths.dat references use name, abbreviation, runtime type and commander, not formation IDs; the bounded parser locates references before clearing deleted identities. Ships.dat uses 23-field records; its fleet reference at offset 2 is remapped when land deletion shifts fleet IDs. Ship property edits are merged through Management. No officer IDs are renumbered.
+
+Unknown layouts and ambiguous combat path identities reject deletion. This mapping is covered with synthetic fixtures and real WPF interactions; loading the result in-game remains a separate acceptance check. Existing save files are only written through Save changes.

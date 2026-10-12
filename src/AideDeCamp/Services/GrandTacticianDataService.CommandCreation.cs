@@ -111,6 +111,27 @@ public sealed partial class GrandTacticianDataService
         session.ExecuteCreation("Assign " + command.Name + " to " + target.Name, () => Set(after, refsAfter), () => Set(before, refsBefore));
     }
 
+    public void ReparentCommand(GroupNode moving, GroupNode target, EditSession session)
+    {
+        RequireCreationSave();
+        if (!CanMoveGroup(moving,target)) throw new InvalidOperationException("Choose a higher land HQ in the same faction, outside this command's branch.");
+        TrackCreationBuffer("armygroups.dat"); TrackCreationBuffer("armygrouprefs.dat");
+        var before=CreationBuffer("armygroups.dat").CloneLines();var refsBefore=CreationBuffer("armygrouprefs.dat").CloneLines();
+        ValidateArmyReferences(refsBefore,_groups.Count,_units.Count);
+        var after=new List<string>(before);var refsAfter=new List<string>(refsBefore);int parent=moving.ParentId;
+        for(int i=0;i<int.Parse(after[0]);i++){
+            int line=4+i*6;var tokens=after[line].Split(';',StringSplitOptions.RemoveEmptyEntries).ToList();
+            if(tokens.RemoveAll(t=>int.Parse(t)==moving.GroupId)>0)after[line]=string.Concat(tokens.Select(t=>t+";"));
+        }
+        for(int i=0;i<_groups.Count;i++)if(int.Parse(_groupBuffer!.Lines[1+i*32])==moving.GroupId)refsAfter[1+i]="-1";
+        void Set(List<string> groups,List<string> refs,int newParent){
+            EnsureFilesUnchanged();moving.ParentId=newParent;
+            CreationBuffer("armygroups.dat").ReplaceLines(groups);CreationBuffer("armygrouprefs.dat").ReplaceLines(refs);
+            LoadArmyGroups();ResolveUnitContext();
+        }
+        session.ExecuteCreation("Attach "+moving.Name+" to "+target.Name,()=>Set(after,refsAfter,target.GroupId),()=>Set(before,refsBefore,parent));
+    }
+
     private void ValidateAdditionalCreation()
     {
         if (_creationCompanions.TryGetValue("armygroups.dat", out var armyGroups))

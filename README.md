@@ -4,9 +4,9 @@ A Windows save editor for **Grand Tactician: The Civil War (1861–1865)**. Edit
 
 ## Download and run
 
-Version **0.8.19** is available from this fork's [test-branch Actions builds](https://github.com/PlaidShirtGamer/Aide-de-Camp-Fork/actions/workflows/build.yml?query=branch%3Atest). Download the Windows package artifact, extract `Aide-de-Camp-0.8.19-win-x64.zip`, and open **Aide-de-Camp.exe**. The .NET runtime is included; no separate installation is required. GitHub's source archives are for developers, not the runnable app.
+Version **0.8.20** is available from this fork's [test-branch Actions builds](https://github.com/PlaidShirtGamer/Aide-de-Camp-Fork/actions/workflows/build.yml?query=branch%3Atest). Download the Windows package artifact, extract `Aide-de-Camp-0.8.20-win-x64.zip`, and open **Aide-de-Camp.exe**. The .NET runtime is included; no separate installation is required. GitHub's source archives are for developers, not the runnable app.
 
-Requires Windows 10/11 x64 and your own game installation. Version **0.8.19** is an experimental test-branch build. Creation supports save version **1.142**. Combined in-game tests confirmed specific Union formations, perks and supplies; this does not establish every possible combination. Start with a copied campaign and keep your original saves. See [creation test results](docs/CREATE_TOOL_GAME_TEST.md) and [release notes](docs/RELEASE_NOTES.md).
+Requires Windows 10/11 x64 and your own game installation. Version **0.8.20** is an experimental test-branch build. Creation supports save version **1.142**. Combined in-game tests confirmed specific Union formations, perks and supplies; this does not establish every possible combination. Start with a copied campaign and keep your original saves. See [creation test results](docs/CREATE_TOOL_GAME_TEST.md) and [release notes](docs/RELEASE_NOTES.md).
 
 ## Features
 

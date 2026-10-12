@@ -253,6 +253,11 @@ public partial class MainWindow
                 StatusText.Text = $"Assigned {moving.Name} to {parent.Name}. Ctrl+Z undoes membership; Save changes writes it with backup.";
                 e.Handled = true; return;
             }
+            if (parent is not null && moving.ArmyGroupName is not null) {
+                try { _data.ReparentCommand(moving,parent,_editSession); }
+                catch(Exception error){StatusText.Text="Unable to attach command: "+error.Message;ClearGroupPreview();e.Handled=true;return;}
+                _dragCommitted=true;_beforeDrag=null;RebuildSide();ShowGroup(moving);UpdateDirtyState();e.Handled=true;return;
+            }
             _editSession.Execute("Move command intact", _data.Units, _data.Groups.Values, () => {
                 if (parent is not null && moving.ParentId != parent.GroupId) _data.MoveGroup(moving, parent);
                 for (int i = 0; i < order.Count; i++) order[i].EditorOrder = i;

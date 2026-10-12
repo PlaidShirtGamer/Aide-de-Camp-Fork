@@ -298,6 +298,13 @@ public sealed partial class GrandTacticianDataService : IDisposable
         if (DiffersFromSaved("groups.dat", _groupBuffer, groupLines)) targets.Add(("groups.dat", _groupBuffer, groupLines));
         if (_pathBuffer is not null && pathLines is not null && DiffersFromSaved("paths.dat", _pathBuffer, pathLines)) targets.Add(("paths.dat", _pathBuffer, pathLines));
         foreach (var (name, buffer) in _creationCompanions) if (DiffersFromSaved(name, buffer, buffer.CloneLines())) targets.Add((name, buffer, buffer.CloneLines()));
+        // Ship properties remain owned by Management; deletion owns only fleet references.
+        if (_creationCompanions.TryGetValue("ships.dat",out var shipBuffer)) {
+            var ships=Management?.WorkingLines("ships.dat") ?? shipBuffer.CloneLines();
+            for(int i=0;i<int.Parse(ships[0]);i++)ships[3+i*23]=shipBuffer.Lines[3+i*23];
+            targets.RemoveAll(t=>t.Name=="ships.dat");
+            if(DiffersFromSaved("ships.dat",shipBuffer,ships))targets.Add(("ships.dat",shipBuffer,ships));
+        }
         if (HasCreationChanges) patchedFields += targets.Sum(t => Math.Abs(t.Lines.Count - _creationSaved.GetValueOrDefault(t.Name, t.Buffer.CloneLines()).Count));
         if (targets.Count == 0) return new SaveResult(changedUnits.Count, 0, null, warnings);
 
@@ -373,6 +380,7 @@ public sealed partial class GrandTacticianDataService : IDisposable
         _groupBuffer.ReplaceLines(groupLines);
         if (_pathBuffer is not null && pathLines is not null) _pathBuffer.ReplaceLines(pathLines);
         foreach (var pair in writtenHashes) _loadedFileHashes[pair.Key] = pair.Value;
+        foreach(var target in targets.Where(t=>t.Name=="ships.dat"))target.Buffer.ReplaceLines(target.Lines);
         Management?.AcceptSaved();
         AcceptCreationSave();
         return new SaveResult(changedUnits.Count + changedGroups.Count, patchedFields, backupDirectory, warnings);
@@ -389,6 +397,7 @@ public sealed partial class GrandTacticianDataService : IDisposable
 
     public void MoveGroup(GroupNode group, GroupNode newParent)
     {
+        if (group.ArmyGroupName is not null) throw new InvalidOperationException("Use the Army Group-aware reparent operation for this command.");
         if (!CanMoveGroup(group, newParent)) throw new InvalidOperationException("Invalid HQ destination: hierarchy, faction, or cycle constraint.");
         if (group.GroupId == newParent.GroupId || group.Nation != newParent.Nation || group.UnitTier >= newParent.UnitTier)
             throw new InvalidOperationException("That command cannot be attached to the selected headquarters.");
@@ -408,7 +417,7 @@ public sealed partial class GrandTacticianDataService : IDisposable
 
     public bool CanMoveGroup(GroupNode moving, GroupNode target)
     {
-        if (moving.IsArmyGroup || target.IsArmyGroup || moving.ArmyGroupName is not null) return false;
+        if (moving.IsArmyGroup || target.IsArmyGroup) return false;
         if (!moving.IsLandCommand || !target.IsLandCommand || moving == target || moving.Nation != target.Nation || moving.UnitTier >= target.UnitTier) return false;
         var seen = new HashSet<int>();
         var current = target;

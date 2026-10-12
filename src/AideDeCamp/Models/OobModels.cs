@@ -90,7 +90,7 @@ public sealed class GroupNode : OobNode
     // Display-only Army Groups never enter the writable groups.dat dictionary.
     public bool IsArmyGroup { get; init; }
     public string? ArmyGroupName { get; set; }
-    public int GroupId { get; init; }
+    public int GroupId { get; set; }
     public int GroupLineStart { get; set; }
     public string RawName { get; set; } = string.Empty;
     public string CommandPath { get; set; } = string.Empty;
