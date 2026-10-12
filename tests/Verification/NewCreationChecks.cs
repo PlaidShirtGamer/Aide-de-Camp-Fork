@@ -10,7 +10,7 @@ internal static class NewCreationChecks
         foreach(var file in Directory.GetFiles(source)) File.Copy(file,Path.Combine(copy,Path.GetFileName(file)));
         using var data=new GrandTacticianDataService();await data.LoadAsync(copy,config);var session=new EditSession();
         int armyOfficer=data.CreateOfficer(new("ADC","Army Test",0,7,0,new(1820,1,1),data.GameDate!.Value),session);
-        int groupOfficer=data.CreateOfficer(new("ADC","Army Group Test",0,7,0,new(1820,1,1),data.GameDate!.Value),session);
+        int groupOfficer=data.CreateOfficer(new("ADC","Army Group Test",0,7,0,new(1820,1,1),data.GameDate!.Value, Experience:40),session);
         var armyRequest=new CreationRequest(new UnitBlueprint {Headquarters=true,Name="ADC New Independent Army",NativeTier=18,Faction=0,CommanderId=armyOfficer,Perks=[new(),new(),new(),new()]},new(null,data.GetCreationTowns().First(t=>t.Location.Owner==0)));
         var assessment=data.AssessCreation(armyRequest);check(assessment.CanCreate,"Real save copy accepts independent GTIP Army: "+string.Join("; ",assessment.Errors));
         var army=(GroupNode)data.CreateUnit(armyRequest,true,session);
@@ -28,16 +28,30 @@ internal static class NewCreationChecks
     {
         var root = Path.Combine(Path.GetTempPath(), "adc-officer-create-" + Guid.NewGuid().ToString("N"));
         var save = Path.Combine(root,"save"); var config = Path.Combine(root,"Config"); Directory.CreateDirectory(save); Directory.CreateDirectory(config);
+        File.WriteAllLines(Path.Combine(config,"campaignprefs.txt"),["The shift in command hierarchy","-1"]);
+        File.WriteAllLines(Path.Combine(config,"dlcwl_config.dat"),["minimum experience for assigning a commander to army group","0.4"]);
+        File.WriteAllLines(Path.Combine(config,"ranks.txt"),Enumerable.Range(0,4).SelectMany(section => new[]{"Synthetic ranks"}.Concat(Enumerable.Range(0,19).SelectMany(t => new[]{"#Unit type "+t, (t >= 16 ? 7 : t >= 14 ? 6 : 2).ToString()}))));
         void Write(string name, IEnumerable<string> lines) => File.WriteAllLines(Path.Combine(save,name),lines);
         Write("version.dat",["1.142"]); Write("scenario.dat",["0","0","8","2","1863"]);
-        var initial = new OfficerBlueprint("Existing","General",0,7,0,new(1820,1,1),new(1861,1,1));
+        var initial = new OfficerBlueprint("Existing","General",0,7,0,new(1820,1,1),new(1861,1,1), Experience:40);
         Write("commanders.txt",new[]{"1"}.Concat(OfficerRecords.Commander(0,initial,"")));
         Write("attributes.dat",new[]{"1"}.Concat(OfficerRecords.AttributeRecord(0)));
         Write("groups.dat",new[]{"1"}.Concat(CreationRecords.Group(0,new UnitBlueprint { Headquarters=true,Name="Independent Corps",CommanderId=0,NativeTier=16,Perks=[new(),new(),new(),new()] },null)));
         Write("regiments.dat",["0"]); Write("paths.dat",["0"]); Write("armygrouprefs.dat",["1","-1","1","0","True","0"]);
-        var original = Directory.GetFiles(save).ToDictionary(Path.GetFileName,File.ReadAllBytes);
+        var original = Directory.GetFiles(save).ToDictionary(f=>Path.GetFileName(f)!,File.ReadAllBytes);
         using var data = new GrandTacticianDataService(); await data.LoadAsync(save,config);
         var session = new EditSession();
+        var rule=data.GetCreationCommanderRule(0,18,true);
+        var candidate=new CreationOfficer(10,"Eligible",0,0,7,0,true,40);
+        var none=new HashSet<int>();
+        check(rule.MinimumRank==7 && rule.MinimumExperience==40 && rule.Problem(candidate,0,none,data.GameDate) is null,"Configured Army Group rank and experience boundary are honored");
+        check(rule.Problem(candidate with {Experience=39.99},0,none,data.GameDate) is not null && rule.Problem(candidate with {Rank=8,Experience=0},0,none,data.GameDate) is null,"Minimum-rank experience check excludes just-below threshold, exempts higher ranks");
+        check(new[]{candidate with {Rank=6},candidate with {Rank=10},candidate with {Branch=4},candidate with {Active=false},candidate with {Status=1},candidate with {Faction=1},candidate with {UnavailableFrom=data.GameDate}}.All(o=>rule.Problem(o,0,none,data.GameDate) is not null),"Unavailable, wrong-faction, naval, under-ranked and dummy officers are excluded");
+        check(rule.Problem(candidate,0,new HashSet<int>{10},data.GameDate) is not null && rule.Problem(candidate with {UnavailableFrom=data.GameDate!.Value.AddDays(1)},0,none,data.GameDate) is null,"Assignments and effective unavailability dates are enforced");
+        check(data.GetCreationCommanderRule(0,18,false).Problem(candidate with {Experience=0},0,none,data.GameDate) is null,"GTIP Army does not inherit Army Group experience requirement");
+        check(data.GetCreationCommanderRule(0,16,false).MinimumRank==6 && data.GetCreationCommanderRule(0,14,false).MinimumRank==2,"Configured hierarchy shift maps Corps and Brigade rank requirements");
+        check(CreationCommanderRule.RankName(6)=="Brigadier General" && CreationCommanderRule.RankName(7)=="Major General","Rank numbers use named army ranks");
+
         var portrait = Path.Combine(root,"portrait.png");
         File.WriteAllBytes(portrait,Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j4WQAAAAASUVORK5CYII="));
         var blueprint = initial with { FirstName="New",LastName="Officer",PortraitPath=portrait };
@@ -86,6 +100,14 @@ internal static class NewCreationChecks
         check(rejected,"Dummy/internal officer rank is rejected");
         rejected=false; try { data.CreateOfficer(blueprint with {FirstName="Future", CommissionDate=new(1900,1,1)},session); } catch(InvalidDataException) {rejected=true;}
         check(rejected,"Future commission date is rejected");
+        var rankLines=File.ReadAllLines(Path.Combine(config,"ranks.txt"));
+        var factionLines=(string[])rankLines.Clone();factionLines[34]="8";factionLines[112]="8";
+        File.WriteAllLines(Path.Combine(config,"ranks1.txt"),factionLines);
+        check(data.GetCreationCommanderRule(1,18,true).MinimumRank==8 && data.GetCreationCommanderRule(0,18,true).MinimumRank==7,"Faction-specific rank table overrides only its own faction");
+        factionLines[112]="9";File.WriteAllLines(Path.Combine(config,"ranks1.txt"),factionLines);
+        check(data.GetCreationCommanderRule(1,18,true).Error is not null,"Unknown organization reform blocks ambiguous rank requirements");
+        File.WriteAllLines(Path.Combine(config,"ranks1.txt"),["Malformed"]);
+        check(data.GetCreationCommanderRule(1,18,true).Error is not null,"Malformed configuration fails closed instead of listing every officer");
         check(!data.SupportsGtipArmies && !data.IsCreationParent(new GroupNode {UnitTier=18,ParentId=-1,Nation=0},0),"Extra Army tier is unavailable without GTIP");
         string managed=Path.Combine(root,"The Civil War (1861-1865)_Data","Managed");Directory.CreateDirectory(managed);File.WriteAllText(Path.Combine(managed,"GTIP.Runtime.dll"),"synthetic marker");
         check(data.SupportsGtipArmies && data.IsCreationParent(new GroupNode {UnitTier=18,ParentId=-1,Nation=0},0),"GTIP Army is an eligible land parent; Fleet remains excluded");

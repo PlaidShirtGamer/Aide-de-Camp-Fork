@@ -36,7 +36,7 @@ public sealed record UnitBlueprint
 // Placement belongs to an invocation, never implicitly to a reusable template.
 public sealed record CreationPlacement(int? ParentId, TownStateMap.MappedTown? Town = null);
 public sealed record CreationRequest(UnitBlueprint Blueprint, CreationPlacement Placement);
-public sealed record CreationOfficer(int Id, string Name, int Faction, int Branch, int Rank, int Status, bool Active);
+public sealed record CreationOfficer(int Id, string Name, int Faction, int Branch, int Rank, int Status, bool Active, double Experience = 0, DateTime? UnavailableFrom = null);
 public sealed record CreationPerkOption(int Id, int Level, string Name, string Description);
 public sealed record CreationAssessment(IReadOnlyList<string> Errors, IReadOnlyList<string> Confirmations)
 {

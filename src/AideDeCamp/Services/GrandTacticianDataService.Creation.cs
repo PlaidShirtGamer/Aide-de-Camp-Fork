@@ -59,7 +59,8 @@ public sealed partial class GrandTacticianDataService
             return new CreationOfficer(RequiredInt(lines[s], "Commander ID"), lines[s + 3],
                 RequiredInt(lines[s + 4], "Commander faction"), RequiredInt(lines[s + 13], "Commander branch"),
                 RequiredInt(lines[s + 59], "Commander rank"), RequiredInt(lines[s + 60], "Commander status"),
-                bool.Parse(lines[s + 65]));
+                bool.Parse(lines[s + 65]), double.Parse(lines[s + 5], CultureInfo.InvariantCulture),
+                OfficerUnavailableDate(lines, s));
         }).ToArray();
     }
     public IReadOnlyDictionary<int, int> GetCreationMaximums()
@@ -137,12 +138,8 @@ public sealed partial class GrandTacticianDataService
             }
             ValidateArmyReferences(ReadCreationCompanion("armygrouprefs.dat"), _groups.Count, _units.Count);
             var officer = GetCreationOfficers().SingleOrDefault(o => o.Id == b.CommanderId);
-            if (officer is null || officer.Faction != b.Faction) errors.Add("Select an existing commander in this faction.");
-            else {
-                if (AssignedCommanderIds().Contains(officer.Id)) errors.Add("That commander is already assigned. Select an unused commander.");
-                if (!officer.Active || officer.Status != 0) warnings.Add($"{officer.Name}: saved status {officer.Status}, active flag {officer.Active}; availability needs game confirmation.");
-                warnings.Add($"Commander assignment: {officer.Name}, saved branch {officer.Branch}, rank {officer.Rank}. ADC checks faction and uniqueness; this rank/branch combination has not been game-tested.");
-            }
+            var commanderProblem = GetCreationCommanderRule(b.Faction, b.NativeTier, false).Problem(officer, b.Faction, AssignedCommanderIds(), GameDate);
+            if (commanderProblem is not null) errors.Add(commanderProblem);
             foreach (var color in new[] { b.Coat, b.Trousers, b.ColorVariation })
                 if (!Regex.IsMatch(color, @"^\d{3}-\d{3}-\d{3}$") || color.Split('-').Any(v => int.Parse(v) > 255)) errors.Add("Uniform colors must use three RGB values from 000 to 255.");
             if (b.Perks.Length != (b.Headquarters ? 4 : 1)) errors.Add("HQs require four perk slots; combat units require one.");

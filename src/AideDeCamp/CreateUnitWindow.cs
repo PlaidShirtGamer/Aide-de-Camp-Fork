@@ -20,6 +20,8 @@ public sealed class CreateUnitWindow : Window
     private readonly GrandTacticianDataService _data;
     private readonly NamingSchemeService _naming;
     private readonly Catalog _catalog;
+    private readonly Dictionary<(int Faction, int Tier), CreationCommanderRule> _commanderRules = new();
+    private readonly TextBlock _commanderHint = Hint("");
     private readonly ComboBox _faction = Combo(), _kind = Combo(), _tier = Combo(), _parent = Combo(), _commander = Combo(), _weapon = Combo(), _home = Combo(), _recruit = Combo(), _state = Combo(), _town = Combo(), _names = Combo(), _uniform = Combo();
     private readonly TextBox _name = Text(), _size = Text(), _contract = Text("12"), _search = Text();
     private readonly CheckBox _advanced = new() { Content = "Advanced • show all sections and browse all weapons", Margin = new(0, 8, 0, 8) };
@@ -49,6 +51,9 @@ public sealed class CreateUnitWindow : Window
     public CreateUnitWindow(GrandTacticianDataService data, NamingSchemeService naming, Catalog catalog, int faction, OobNode? context)
     {
         _data = data; _naming = naming; _catalog = catalog;
+        for (int side = 0; side < 2; side++)
+            foreach (int tier in new[] {10,11,12,13,14,15,16,18,19})
+                _commanderRules[(side,tier)] = data.GetCreationCommanderRule(side, tier == 19 ? 18 : tier, tier == 19);
         Title = "Create Unit"; Width = 830; Height = 840; MinWidth = 650; MinHeight = 560;
         WindowStartupLocation = WindowStartupLocation.CenterOwner; ResizeMode = ResizeMode.CanResize;
         Background = new SolidColorBrush(Color.FromRgb(20, 28, 36)); Foreground = Brushes.Gainsboro;
@@ -74,7 +79,7 @@ public sealed class CreateUnitWindow : Window
         identity.Children.Add(_armyMemberPanel);
         Row(identity, "Parent HQ", _parent); identity.Children.Add(_placementText);
         Row(_location, "Filter by state", _state); Row(_location, "Find town", _search); Row(_location, "Spawn town", _town); identity.Children.Add(_location);
-        Row(identity, "Commander", _commander);
+        Row(identity, "Commander", _commander); identity.Children.Add(_commanderHint);
         Row(identity, "Uniform colors", _uniform);
         _uniform.ToolTip = "Copies only the three mapped RGB color fields from an existing faction style, never a unit's record or hierarchy.";
         _equipmentSection = Section("2  Recruitment, equipment and starting stock", _combat, true); body.Children.Add(_equipmentSection);
@@ -135,7 +140,6 @@ public sealed class CreateUnitWindow : Window
         var tiers = Hq ? (_data.SupportsGtipArmies ? new[] {16, 15, 14, 18, 19} : new[] {16, 15, 14, 19}) : Selected(_kind) == 2 ? new[] {11, 10, 12, 13} : new[] {13, 12, 11, 10};
         int tier = resetKind ? tiers[0] : Selected(_tier);
         Set(_tier, tiers.Select(t => new Choice(t, t == 19 ? "Army Group" : t == 18 ? "Army (GTIP)" : OobPresentation.TierName(t, Hq))), tier);
-        Set(_commander, new[] {new Choice(-1, "Select an unused commander…")}.Concat(_catalog.Officers.Where(o => o.Faction == Faction && !_catalog.AssignedCommanders.Contains(o.Id)).OrderBy(o => o.Name).Select(o => new Choice(o.Id, $"{o.Name}  • rank {o.Rank}"))), -1);
         Set(_uniform, _catalog.Uniforms.Select((style, index) => (style, index)).Where(p => p.style.Faction == Faction).Select(p => new Choice(p.index, $"Coat {p.style.Coat} • trousers {p.style.Trousers}")), -1);
         if (_uniform.Items.Count > 0) _uniform.SelectedIndex = 0;
         _combat.IsEnabled = !Hq; _combat.ToolTip = Hq ? "HQs have no combat weapon, men, contract, home-state or stock record. These fields apply to their combat units." : null;
@@ -146,6 +150,16 @@ public sealed class CreateUnitWindow : Window
         if (!Hq && resetKind) _size.Text = _catalog.Maximums[Selected(_kind)].ToString();
         _refreshing = false;
         RefreshWeapons(); RefreshHomeStates(); RefreshParents(null); RefreshPerks(); UpdateExperience(); UpdateSize();
+    }
+    private void RefreshCommanders()
+    {
+        int old = Selected(_commander);
+        if (!_commanderRules.TryGetValue((Faction, Selected(_tier)), out var rule)) return;
+        var available = _catalog.Officers.Where(o => rule.Problem(o, Faction, _catalog.AssignedCommanders, _data.GameDate) is null)
+            .OrderBy(o => o.Name).Select(o => new Choice(o.Id, $"{CreationCommanderRule.RankName(o.Rank)} {o.Name}" + (ArmyGroup ? $" • {o.Experience:0.##}% experience" : ""))).ToArray();
+        Set(_commander, new[] { new Choice(-1, available.Length == 0 ? "No eligible commanders available" : "Select an available commander…") }.Concat(available), old);
+        if (_commander.SelectedItem is null) _commander.SelectedIndex = 0;
+        _commanderHint.Text = rule.Description;
     }
     private void RefreshHomeStates()
     {
@@ -162,6 +176,7 @@ public sealed class CreateUnitWindow : Window
     private void RefreshParents(int? preferred)
     {
         if (_refreshing) return;
+        RefreshCommanders();
         _armyMemberPanel.Visibility = ArmyGroup ? Visibility.Visible : Visibility.Collapsed;
         _armyMembers.ItemsSource = _catalog.Groups.Where(g => g.Nation == Faction && g.ParentId < 0 && g.ArmyGroupName is null && g.IsLandCommand && _data.IsCreationParent(g, Faction)).OrderBy(g => g.Name).ToArray();
         _parent.IsEnabled = !ArmyGroup;

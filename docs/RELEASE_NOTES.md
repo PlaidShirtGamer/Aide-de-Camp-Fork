@@ -1,3 +1,11 @@
+# Aide-de-Camp 0.8.17
+
+- Create Unit lists only active, unassigned land officers in the chosen faction who meet the selected command's minimum rank. Effective unavailability dates are honored.
+- Commander entries display proper rank names. Army Group entries also show experience; the game's configured threshold applies at the minimum rank, with higher ranks exempt. GTIP Armies do not inherit that threshold.
+- Requirements follow faction rank tables, the campaign hierarchy shift, and completed organization reform. Missing or ambiguous settings show an explanation instead of offering ineligible officers.
+- Changing tier or faction immediately updates the list, retaining a selected commander only while eligible. Final creation validation repeats the same checks against current staged data.
+- Executable metadata, window title and Windows package are versioned 0.8.17. Includes the preceding test-branch hierarchy, command creation and officer creation features.
+
 ## GTIP creation test build 2 (test branch)
 
 - Create Unit now includes Army (when the selected game has GTIP installed) and Army Group. Army Groups can attach eligible independent commands, or start empty without a map icon.

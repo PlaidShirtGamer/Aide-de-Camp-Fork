@@ -31,8 +31,8 @@ public sealed partial class GrandTacticianDataService
             if (string.IsNullOrWhiteSpace(b.Name) || b.Name.Length > 160 || b.Name.Any(char.IsControl)) errors.Add("Enter a name of 1–160 characters without control characters.");
             if (_armyGroups.Any(a => a.Source.Name == b.Name) || _groups.Values.Any(g => g.Name == b.Name)) errors.Add("That command name is already in use.");
             var officer = GetCreationOfficers().SingleOrDefault(o => o.Id == b.CommanderId);
-            if (officer is null || officer.Faction != b.Faction || AssignedCommanderIds().Contains(b.CommanderId)) errors.Add("Select an unassigned officer in this faction.");
-            else if (officer.Rank < 6 || !officer.Active || officer.Status != 0 || officer.Branch == 4) errors.Add("Select an active, available land general (BG or higher).");
+            var commanderProblem = GetCreationCommanderRule(b.Faction, 18, true).Problem(officer, b.Faction, AssignedCommanderIds(), GameDate);
+            if (commanderProblem is not null) errors.Add(commanderProblem);
             if (b.AttachedCommandIds.Distinct().Count() != b.AttachedCommandIds.Length) errors.Add("Each attached command must be selected once.");
             foreach (int id in b.AttachedCommandIds)
                 if (!_groups.TryGetValue(id, out var g) || g.ParentId >= 0 || g.Nation != b.Faction ||
