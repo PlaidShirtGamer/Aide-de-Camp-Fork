@@ -11,6 +11,11 @@ namespace AideDeCamp;
 public sealed class CreateOfficerWindow : Window
 {
     private readonly GrandTacticianDataService _data;
+    private readonly string? _config;
+    private readonly ComboBox _destination = new();
+    private readonly TextBlock _destinationHelp = new() { TextWrapping = TextWrapping.Wrap, Margin = new(0,0,0,12) };
+    public BaseGameOfficerPlan? BaseGamePlan { get; private set; }
+    private bool BaseGame => _destination.SelectedIndex == 1;
     private readonly TextBox _first = new(), _last = new();
     private readonly ComboBox _faction = new(), _rank = new(), _branch = new(), _state = new();
     private readonly DatePicker _birth = new(), _commission = new();
@@ -21,9 +26,9 @@ public sealed class CreateOfficerWindow : Window
     private string? _portraitPath;
     public OfficerBlueprint? Blueprint { get; private set; }
 
-    public CreateOfficerWindow(GrandTacticianDataService data, int faction)
+    public CreateOfficerWindow(GrandTacticianDataService data, int faction, string? config = null)
     {
-        _data = data; Title = "Create Officer"; Width = 700; Height = 830; MinWidth = 580; MinHeight = 600;
+        _data = data; _config = config ?? data.ConfigDirectory; Title = "Create Officer"; Width = 700; Height = 830; MinWidth = 580; MinHeight = 600;
         Background = new SolidColorBrush(Color.FromRgb(20,28,36)); Foreground = Brushes.Gainsboro;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var root = new DockPanel { Margin = new(20) }; Content = root;
@@ -33,8 +38,14 @@ public sealed class CreateOfficerWindow : Window
         var create = new Button { Content = "Review & Create", Margin = new(5), Padding = new(12,6,12,6) }; create.Click += Create;
         buttons.Children.Add(new Button { Content = "Cancel", IsCancel = true, Margin = new(5) }); buttons.Children.Add(create); footer.Children.Add(buttons);
         var body = new StackPanel(); root.Children.Add(new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
-        body.Children.Add(new TextBlock { Text = "Create an officer in this save", FontSize = 23, Margin = new(0,0,0,12) });
-        body.Children.Add(new TextBlock { Text = "The officer starts available and unassigned. Creation is staged until Save changes; Ctrl+Z undoes it.", TextWrapping = TextWrapping.Wrap, Margin = new(0,0,0,12) });
+        body.Children.Add(new TextBlock { Text = "Create an officer", FontSize = 23, Margin = new(0,0,0,12) });
+        _destination.Items.Add(new ComboBoxItem { Content = "Currently loaded save", IsEnabled = data.SaveDirectory is not null && !data.IsReadOnlySave && data.GameDate is not null });
+        _destination.Items.Add(new ComboBoxItem { Content = "Base game — new campaigns", IsEnabled = _config is not null });
+        _destination.SelectionChanged += (_,_) => _destinationHelp.Text = BaseGame
+            ? "Writes to the game's Config officer catalog after review, with a backup. Existing saves are unchanged. Scenarios with their own officer catalog do not use this catalog. The campaign start date determines the starting rank."
+            : "The officer starts available and unassigned. Creation is staged until Save changes; Ctrl+Z undoes it.";
+        _destination.SelectedIndex = data.SaveDirectory is not null && !data.IsReadOnlySave ? 0 : 1;
+        Row(body,"Add officer to",_destination); body.Children.Add(_destinationHelp);
         _faction.ItemsSource = new[] { "Union", "Confederacy" }; _faction.SelectedIndex = faction;
         _rank.ItemsSource = OfficerRecords.Ranks; _rank.SelectedIndex = 4;
         _branch.ItemsSource = new[] { "No specialization", "Infantry", "Cavalry", "Artillery", "Engineer" }; _branch.SelectedIndex = 1;
@@ -50,7 +61,7 @@ public sealed class CreateOfficerWindow : Window
                 if (picker.Template.FindName("PART_TextBox", picker) is Control dateText) dateText.Foreground = Brushes.Gainsboro;
             };
         }
-        _birth.SelectedDate = new DateTime(1820,1,1); _commission.SelectedDate = data.GameDate;
+        _birth.SelectedDate = new DateTime(1820,1,1); _commission.SelectedDate = data.GameDate ?? new DateTime(1861,1,1);
         Row(body,"First name",_first); Row(body,"Last name",_last); Row(body,"Faction",_faction); Row(body,"Rank",_rank);
         Row(body,"Branch",_branch); Row(body,"Home state",_state); Row(body,"Date of birth",_birth); Row(body,"Date rank attained",_commission);
         var portrait = new StackPanel(); var browse = new Button { Content = "Choose PNG portrait…", HorizontalAlignment = HorizontalAlignment.Left };
@@ -73,7 +84,7 @@ public sealed class CreateOfficerWindow : Window
     private void Browse(object sender, RoutedEventArgs e)
     {
         var picker = new Microsoft.Win32.OpenFileDialog { Filter = "PNG portrait (*.png)|*.png", CheckFileExists = true };
-        if (Directory.Exists(_data.PortraitDirectory)) picker.InitialDirectory = _data.PortraitDirectory;
+        if (_config is not null) { var avatar = Path.Combine(Path.GetDirectoryName(_config)!, "Avatar"); if (Directory.Exists(avatar)) picker.InitialDirectory = avatar; }
         if (picker.ShowDialog(this) != true) return;
         try
         {
@@ -95,10 +106,12 @@ public sealed class CreateOfficerWindow : Window
                 _birth.SelectedDate ?? throw new InvalidDataException("Choose a birth date."), _commission.SelectedDate ?? throw new InvalidDataException("Choose a date of rank."),
                 (_state.SelectedItem as AideDeCamp.Models.StateOption)?.Id ?? -1, _veteran.IsChecked == true, _westPoint.IsChecked == true, _political.IsChecked == true,
                 stats[0],stats[1],stats[2],stats[3],stats[4],stats[5],_portraitPath);
-            OfficerRecords.Validate(blueprint, _data.GameDate ?? throw new InvalidDataException("Load a dated save first."));
+            OfficerRecords.Validate(blueprint, BaseGame ? new DateTime(1900,1,1) : _data.GameDate ?? throw new InvalidDataException("Load a dated save first."));
+            var plan = BaseGame ? new BaseGameOfficerPlan(_config ?? throw new InvalidDataException("Select the game folder first."), blueprint) : null;
             string summary = $"{_rank.Text} {blueprint.FirstName} {blueprint.LastName}\n{_faction.Text} • {_branch.Text}\nPortrait: {_portraitName.Text}";
-            if (new CreationReviewWindow(summary, ["Creates an available officer in the loaded save. Rank eligibility for specific commands is still enforced by the game."]) { Owner = this }.ShowDialog() != true) return;
-            Blueprint = blueprint; DialogResult = true;
+            summary += plan is null ? "\nDestination: currently loaded save" : "\nDestination: base game\n" + plan.CatalogPath;
+            if (new CreationReviewWindow(summary, [plan is null ? "Stages an officer in the loaded save until Save changes." : "Writes the base-game catalog now with a backup. Existing saves and scenario-specific catalogs are unchanged; the game's startup rules determine rank and experience. Restore the catalog backup to undo."]) { Owner = this }.ShowDialog() != true) return;
+            Blueprint = blueprint; BaseGamePlan = plan; DialogResult = true;
         }
         catch (Exception error) { _error.Text = error.Message; }
     }
@@ -109,11 +122,16 @@ public partial class MainWindow
     private void CreateOfficer_Click(object sender, RoutedEventArgs e)
     {
         if (_saveInProgress || !CommitTypedDrafts()) return;
-        if (_data.SaveDirectory is null || _data.GameDate is null) { StatusText.Text = "Open a campaign save to create an officer."; return; }
+        if (_data.SaveDirectory is null && _configDirectory is null) { StatusText.Text = "Select a game folder or open a campaign save to create an officer."; return; }
         try
         {
-            var dialog = new CreateOfficerWindow(_data, _nation) { Owner = this };
+            var dialog = new CreateOfficerWindow(_data, _nation, _configDirectory) { Owner = this };
             if (dialog.ShowDialog() != true || dialog.Blueprint is null) return;
+            if (dialog.BaseGamePlan is { } plan) {
+                string backup = plan.Commit();
+                StatusText.Text = $"Added base-game officer #{plan.OfficerId}. Backup: {backup}. Existing saves are unchanged.";
+                return;
+            }
             int id = _data.CreateOfficer(dialog.Blueprint, _editSession);
             _management = null; OpenWorkspace(dialog.Blueprint.Faction, "Officers"); SearchBox.Text = ""; RefreshManagement(); UpdateDirtyState();
             StatusText.Text = $"Created officer #{id}. Save changes writes the officer and imports the chosen portrait. Ctrl+Z undoes creation.";

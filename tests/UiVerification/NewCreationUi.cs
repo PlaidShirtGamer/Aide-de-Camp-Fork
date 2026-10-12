@@ -61,6 +61,35 @@ internal static partial class Program
         Accept(ow,()=>{Field<TextBox>(ow,"_first").Text="New";Field<TextBox>(ow,"_last").Text="Officer";Field<ComboBox>(ow,"_rank").SelectedIndex=6;},()=>typeof(CreateOfficerWindow).GetMethod("Create",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(ow,[ow,new RoutedEventArgs()]));
         Check(ow.Blueprint is {Faction:1,Rank:7,FirstName:"New"},"Officer modal review returns selected faction and MG rank");
 
+        using(var empty=new GrandTacticianDataService()) {
+            File.WriteAllLines(Path.Combine(config,"commanders.txt"),new[]{"1"}.Concat(OfficerRecords.Commander(0,officer,"")));
+            var baseWindow=new CreateOfficerWindow(empty,0,config);
+            Accept(baseWindow,()=>{Field<TextBox>(baseWindow,"_first").Text="Base";Field<TextBox>(baseWindow,"_last").Text="Officer";},()=>typeof(CreateOfficerWindow).GetMethod("Create",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(baseWindow,[baseWindow,new RoutedEventArgs()]));
+            Check(baseWindow.BaseGamePlan is {OfficerId:1} && File.ReadAllLines(Path.Combine(config,"commanders.txt"))[0]=="1","Base-game officer creation works without a loaded save and waits for reviewed commit");
+        }
+        var main=new MainWindow(true);main.Show();
+        var mainData=Field<GrandTacticianDataService>(main,"_data");
+        var hq=new GroupNode {GroupId=380,Name="",Nation=1,ParentId=-1,UnitTier=16,IsExpanded=false};
+        var unnamed=new CombatUnitNode {UnitId=380,Name="",Nation=1,ParentId=380,UnitTier=13,UnitType=0,TotalMenRaw=1000};
+        ((Dictionary<int,GroupNode>)mainData.Groups).Add(hq.GroupId,hq);((List<CombatUnitNode>)mainData.Units).Add(unnamed);
+        typeof(MainWindow).GetMethod("RebuildSide",BindingFlags.NonPublic|BindingFlags.Instance)!.Invoke(main,[true]);
+        ((TextBox)main.FindName("SearchBox")).Text="does not match";
+        var navigationTimer=new DispatcherTimer {Interval=TimeSpan.FromMilliseconds(50)};
+        navigationTimer.Tick+=(_,_)=>{
+            var review=Application.Current.Windows.OfType<ValidationReviewWindow>().FirstOrDefault();if(review is null)return;
+            navigationTimer.Stop();review.Width=550;review.Height=300;Flush(review);Capture(review,"warning-navigation.png");
+            Descendants(review).OfType<Button>().Single(b=>b.Content?.ToString()=="Go to unit").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        };
+        navigationTimer.Start();
+        var method=typeof(MainWindow).GetMethods(BindingFlags.NonPublic|BindingFlags.Instance).Single(m=>m.Name=="ShowValidationReview"&&m.GetParameters()[0].ParameterType==typeof(List<ValidationReviewItem>));
+        bool saved=(bool)method.Invoke(main,[new List<ValidationReviewItem>{new("[ID 380] — Name: The unit name is blank.",unnamed)},true,"Review warnings",false])!;
+        navigationTimer.Stop();Flush(main);
+        Check(!saved && ReferenceEquals(Field<OobNode>(main,"_selectedNode"),unnamed) && hq.IsExpanded,"Warning jump cancels save and selects the exact combat record beneath expanded ancestors");
+        Check(Field<int>(main,"_nation")==1 && ((TextBox)main.FindName("SearchBox")).Text=="","Warning jump switches faction and clears a hiding search");
+        typeof(MainWindow).GetMethod("NavigateToValidationTarget",BindingFlags.NonPublic|BindingFlags.Instance)!.Invoke(main,[hq]);
+        Check(ReferenceEquals(Field<OobNode>(main,"_selectedNode"),hq),"HQ navigation remains distinct from combat unit with the same numeric ID");
+        main.Close();
+
         void Capture(Window window,string name)
         {
             var image=new RenderTargetBitmap((int)window.ActualWidth,(int)window.ActualHeight,96,96,PixelFormats.Pbgra32);image.Render(window);

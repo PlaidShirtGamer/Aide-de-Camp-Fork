@@ -1,3 +1,9 @@
+# Aide-de-Camp 0.8.18
+
+- Save warnings and data review offer Go to unit / Go to HQ for affected formations. Navigation cancels the pending save, switches faction/workspace, clears search, expands the tree and selects the exact record (including blank names).
+- New Officer offers the loaded save or the base-game Config catalog. Base-game creation works without a loaded save and writes after review with exact backups, optional attribute-record updates and portrait import. Existing saves and scenario-specific catalogs remain separate.
+- Base-game writes detect stale reviews and roll back after replacement failures. See CREATE_OFFICERS for backup restoration and campaign-start behavior.
+
 # Aide-de-Camp 0.8.17
 
 - Create Unit lists only active, unassigned land officers in the chosen faction who meet the selected command's minimum rank. Effective unavailability dates are honored.

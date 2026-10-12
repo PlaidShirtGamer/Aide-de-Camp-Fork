@@ -1613,7 +1613,7 @@ public partial class MainWindow : Window
     {
         _dirty = dirty;
         DirtyIndicator.Text = dirty ? "● UNSAVED" : string.Empty;
-        Title = "Aide-de-Camp 0.8.17" + (dirty ? " *" : "");
+        Title = "Aide-de-Camp 0.8.18" + (dirty ? " *" : "");
     }
 
     protected override void OnClosing(CancelEventArgs e)

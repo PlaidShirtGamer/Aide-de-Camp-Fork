@@ -210,20 +210,20 @@ public partial class MainWindow
     private void ReviewData_Click(object sender, RoutedEventArgs e)
     {
         var messages = ScanWorkingData(ValidationSeverity.Error).Concat(ScanWorkingData(ValidationSeverity.Warning)).ToList();
-        if(_data.Management is { } doc)messages.AddRange(doc.Review());
-        if (messages.Count == 0) messages.Add("No issues detected by the currently mapped validation rules.");
+        if(_data.Management is { } doc)messages.AddRange(doc.Review().Select(text => new ValidationReviewItem(text)));
+        if (messages.Count == 0) messages.Add(new("No issues detected by the currently mapped validation rules."));
         ShowValidationReview(messages, false, "Current data review — both factions", true);
     }
-    private List<string> ScanWorkingData(ValidationSeverity severity)
+    private List<ValidationReviewItem> ScanWorkingData(ValidationSeverity severity)
     {
-        var result = new List<string>();
+        var result = new List<ValidationReviewItem>();
         foreach (var unit in _data.Units.Where(CanEdit)) {
             var d = Draft(unit);
-            result.AddRange(d.Fields.Values.Where(f=>f.Result.Severity==severity).Select(f=>$"{unit.Name} [ID {unit.UnitId}] — {f.Label}: {f.Result.Message}"));
+            result.AddRange(d.Fields.Values.Where(f=>f.Result.Severity==severity).Select(f=>new ValidationReviewItem($"{unit.Name} [ID {unit.UnitId}] — {f.Label}: {f.Result.Message}", unit)));
         }
         foreach (var group in _data.Groups.Values.Where(g => g.IsLandCommand)) {
             var name = GroupNameDraft(group);
-            if (name.Result.Severity == severity) result.Add($"{group.Name} — HQ name: {name.Result.Message}");
+            if (name.Result.Severity == severity) result.Add(new($"{group.Name} [HQ ID {group.GroupId}] — HQ name: {name.Result.Message}", group));
         }
         return result;
     }
@@ -235,21 +235,35 @@ public partial class MainWindow
         return warnings.Count==0 || ShowValidationReview(warnings,true,"Review potentially risky data");
     }
     private bool ShowValidationReview(List<string> messages, bool allowOverride, string title, bool browseUnclassified = false)
+        => ShowValidationReview(messages.Select(text => new ValidationReviewItem(text)).ToList(), allowOverride, title, browseUnclassified);
+
+    private bool ShowValidationReview(List<ValidationReviewItem> messages, bool allowOverride, string title, bool browseUnclassified = false)
     {
-        var dialog = new Window { Owner=this, Title=title, Width=760, Height=530, Background=(Brush)FindResource("SurfaceBrush"), Foreground=Brushes.White, WindowStartupLocation=WindowStartupLocation.CenterOwner };
-        var panel = new DockPanel { Margin=new Thickness(16) };
-        var bottom=new StackPanel(); DockPanel.SetDock(bottom,Dock.Bottom); panel.Children.Add(bottom);
-        if(browseUnclassified) {
-            var browse=new Button {Content="Browse unclassified records for current faction"};
-            browse.Click+=(_,_)=>{dialog.DialogResult=false;OpenWorkspace(_nation,"Unclassified");};
-            bottom.Children.Add(browse);
+        var dialog = new ValidationReviewWindow(messages, allowOverride, title, browseUnclassified) { Owner = this };
+        bool proceed = dialog.ShowDialog() == true;
+        if (dialog.Target is { } target) NavigateToValidationTarget(target);
+        else if (dialog.BrowseUnclassified) OpenWorkspace(_nation, "Unclassified");
+        return proceed;
+    }
+    private void NavigateToValidationTarget(OobNode target)
+    {
+        bool roster = _showRoster;
+        var category = target is CombatUnitNode u ? _commandClassifier.CategoryForUnit(u, _data.Groups)
+            : _commandClassifier.CategoryForGroup((GroupNode)target, _data.Groups);
+        OpenWorkspace(target is CombatUnitNode combat ? combat.Nation : ((GroupNode)target).Nation, category == CommandCategory.Garrison ? "Garrisons" : category == CommandCategory.Unknown ? "Unclassified" : "Armies");
+        SearchBox.Text = "";
+        if (target is CombatUnitNode unit) { NavigateToUnit(unit, roster); return; }
+        var group = (GroupNode)target;
+        var seen = new HashSet<int>(); var current = group;
+        while (seen.Add(current.GroupId)) {
+            current.IsExpanded = true;
+            foreach (var army in _data.ArmyGroups.Where(a => a.AttachedGroupIds.Contains(current.GroupId))) army.Source.IsExpanded = true;
+            if (!_data.Groups.TryGetValue(current.ParentId, out current!)) break;
         }
-        var ack=new CheckBox { Content="I understand these valid but risky values could damage this campaign.", Margin=new Thickness(0,10,0,8), Visibility=allowOverride?Visibility.Visible:Visibility.Collapsed };
-        bottom.Children.Add(ack);
-        var proceed=new Button { Content=allowOverride?"Acknowledge and save with backup":"Return to editing", IsEnabled=!allowOverride };
-        ack.Checked+=(_,_)=>proceed.IsEnabled=true; ack.Unchecked+=(_,_)=>proceed.IsEnabled=false;
-        proceed.Click+=(_,_)=>dialog.DialogResult=allowOverride; bottom.Children.Add(proceed);
-        panel.Children.Add(new TextBox { Text=string.Join("\n\n",messages), IsReadOnly=true, TextWrapping=TextWrapping.Wrap, VerticalScrollBarVisibility=ScrollBarVisibility.Auto });
-        dialog.Content=panel; return dialog.ShowDialog()==true;
+        SetView(roster); _selectedNode = group; ShowGroup(group);
+        if (roster) {
+            RefreshRoster(); var row = _rosterRows.FirstOrDefault(r => r.Group == group);
+            if (row is not null) { RosterGrid.SelectedItem = row; RosterGrid.ScrollIntoView(row); }
+        } else { RefreshOobCanvas(); FocusNode(group); }
     }
 }
