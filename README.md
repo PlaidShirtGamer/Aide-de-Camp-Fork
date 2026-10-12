@@ -22,15 +22,5 @@ Requires Windows 10/11 x64 and your own game installation. Version **0.8.20** is
 - Compact Tree cards with readable command/strength/alerts, responsive edge gaps, and preserved Nudge offsets.
 - Adjustable UI settings and application error logs.
 
-See the [user guide](docs/USER_GUIDE.md) and [known limits](docs/KNOWN_LIMITS.md) before editing campaign progression.
-
-## For developers
-
-- [Build, verify, and package](docs/BUILDING.md)
-- [Architecture and save mapping](docs/ARCHITECTURE.md)
-- [Development history](docs/DEVELOPMENT_HISTORY.md)
-- [Contributing](CONTRIBUTING.md)
-
-The two original GTCW.OOBEditor starter commits remain in this repository's ancestry. Later local development is summarized honestly in the history document, rather than presented as reconstructed commits.
 
 Source code is available under the [MIT license](LICENSE). This is an unofficial independent project. Game assets, campaign saves, and game binaries are not included.

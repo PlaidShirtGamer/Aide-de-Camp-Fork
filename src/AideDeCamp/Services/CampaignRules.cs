@@ -62,6 +62,24 @@ public static class CampaignRules
         for(int i=0;i+1<lines.Length;i++)if(lines[i].Trim().StartsWith(label,StringComparison.OrdinalIgnoreCase) && double.TryParse(lines[i+1],NumberStyles.Float,CultureInfo.InvariantCulture,out double v) && double.IsFinite(v))return v;
         return null;
     }
+    // Names are configuration data, not save-file tier IDs. Mods may rename
+    // tier 16 from Army to Corps and tier 18 from Army Group to Army.
+    public static IReadOnlyDictionary<int,string> UnitTierNames(string save,string? config) {
+        var file=Resolve(save,config,"unitprefs.txt");
+        return file is null ? new Dictionary<int,string>() : ParseUnitTierNames(File.ReadAllLines(file));
+    }
+    public static IReadOnlyDictionary<int,string> ParseUnitTierNames(IReadOnlyList<string> lines) {
+        var names=new Dictionary<int,string>();
+        for(int i=0;i+1<lines.Count;i++) {
+            string header=lines[i].Trim();
+            if(!header.StartsWith("Unit Type ",StringComparison.OrdinalIgnoreCase))continue;
+            int hash=header.IndexOf('#');
+            if(hash<0 || !int.TryParse(header["Unit Type ".Length..hash].Trim(),NumberStyles.Integer,CultureInfo.InvariantCulture,out int tier) || tier is < 0 or > 100)continue;
+            string label=lines[i+1].Trim();
+            if(label.Length is > 0 and <= 80 && !label.Any(char.IsControl))names[tier]=label;
+        }
+        return names;
+    }
     public static ArtilleryRules? Artillery(string save,string? config) {
         var version=Path.Combine(save,"version.dat");if(!File.Exists(version) || File.ReadLines(version).FirstOrDefault()?.Trim()!="1.142")return null;
         var file=Resolve(save,config,"unitprefs.txt");if(file is null)return null;var l=File.ReadAllLines(file);

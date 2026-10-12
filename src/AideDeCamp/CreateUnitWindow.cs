@@ -14,7 +14,8 @@ public sealed class CreateUnitWindow : Window
         IReadOnlyList<StateOption> States, IReadOnlyDictionary<int, int> Maximums,
         IReadOnlyList<TownStateMap.MappedTown> Towns, string TownProblem,
         IReadOnlyList<CreationPerkOption> CombatPerks, IReadOnlyList<CreationPerkOption> HqPerks,
-        IReadOnlyList<GroupNode> Groups, IReadOnlySet<int> AssignedCommanders, IReadOnlyList<CreationUniform> Uniforms, IReadOnlyList<ManagementSnapshot.State> StateRules);
+        IReadOnlyList<GroupNode> Groups, IReadOnlySet<int> AssignedCommanders, IReadOnlyList<CreationUniform> Uniforms, IReadOnlyList<ManagementSnapshot.State> StateRules,
+        IReadOnlyDictionary<int,string> TierNames);
     private sealed record Choice(int Id, string Label) { public override string ToString() => Label; }
     private sealed record TownChoice(TownStateMap.MappedTown Town, string Label) { public override string ToString() => Label; }
     private readonly GrandTacticianDataService _data;
@@ -134,6 +135,8 @@ public sealed class CreateUnitWindow : Window
         var list = choices.ToArray(); combo.ItemsSource = list; combo.SelectedItem = list.FirstOrDefault(c => c.Id == selected);
     }
     private string StateName(int id) => _catalog.States.FirstOrDefault(s => s.Id == id)?.Name ?? $"State {id}";
+    private string TierName(int nativeTier, bool headquarters) => _catalog.TierNames.TryGetValue(nativeTier, out var name)
+        ? name : OobPresentation.TierName(nativeTier, headquarters);
     private void RefreshChoices(bool resetKind)
     {
         if (_refreshing) return; _refreshing = true;
@@ -187,7 +190,7 @@ public sealed class CreateUnitWindow : Window
         _equipmentSection.Visibility = ArmyGroup ? Visibility.Collapsed : Visibility.Visible;
         int old = preferred ?? Selected(_parent);
         var choices = _catalog.Groups.Where(g => _data.IsCreationParent(g, Faction) && (!Hq || g.UnitTier > Selected(_tier)))
-            .OrderBy(g => g.Name).Select(g => new Choice(g.GroupId, $"{g.Name} • {g.TierName} HQ • #{g.GroupId}"));
+            .OrderBy(g => g.Name).Select(g => new Choice(g.GroupId, $"{g.Name} • {TierName(g.UnitTier, true)} HQ • #{g.GroupId}"));
         Set(_parent, new[] { new Choice(-1, Hq ? "Independent command • choose a town" : "Select parent HQ…") }.Concat(choices), old);
         if (_parent.SelectedItem is null) _parent.SelectedIndex = 0;
         UpdatePlacement();
@@ -279,7 +282,7 @@ public sealed class CreateUnitWindow : Window
             var check = _data.AssessCreation(request);
             if (!check.CanCreate) { _review.Text = string.Join("\n", check.Errors); return; }
             var placement = request.Placement.ParentId is int id ? _catalog.Groups.Single(g => g.GroupId == id).Name + " (parent HQ)" : request.Placement.Town!.Location.Name;
-            string summary = $"{blueprint.Name}\n{(Faction == 0 ? "Union" : "Confederacy")} • {OobPresentation.TierName(blueprint.NativeTier, Hq)} (native {blueprint.NativeTier})\nPlacement: {placement}\nCommander: {_commander.Text}";
+            string summary = $"{blueprint.Name}\n{(Faction == 0 ? "Union" : "Confederacy")} • {TierName(blueprint.NativeTier, Hq)} (native {blueprint.NativeTier})\nPlacement: {placement}\nCommander: {_commander.Text}";
             if (!Hq) summary += $"\n{_kind.Text} • {size:N0} men • {_weapon.Text}\nHome state: {StateName(blueprint.HomeStateId)} • {_recruit.Text} • {blueprint.ContractMonths} months\nTraining: {blueprint.Training:0}/100 • Experience: {blueprint.Experience:0}/100\nStarting stock (small arms / artillery / provisions / forage):\n" + string.Join(" / ", blueprint.SupplyPercent.Select(p => $"{p:0.##}% ({size * p / 100:0.##})"));
             var perkCatalog = Hq ? _catalog.HqPerks : _catalog.CombatPerks;
             summary += "\nPerks: " + string.Join("; ", blueprint.Perks.Select(p => (p.Id < 0 ? "No perk" : perkCatalog.First(c => c.Id == p.Id && c.Level == p.Level).Name) + $" • {p.Progress * 100:0}% progress"));
