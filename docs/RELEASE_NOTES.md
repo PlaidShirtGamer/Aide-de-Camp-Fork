@@ -1,3 +1,9 @@
+# Aide-de-Camp 0.8.19
+
+- Officer birth-date and date-of-rank popups use a dark, high-contrast calendar, including selected days and month/year navigation.
+- Randomize name fills editable first/last names from a built-in name pool, avoiding full names already used in the selected save or base-game catalog and the current entry.
+- Drag an independent land command (including a GTIP Army) onto another Army Group to transfer its membership. Preview, undo/redo and save/reload update the native membership and commander-reference records without changing the Army's commander or native parentage.
+
 # Aide-de-Camp 0.8.18
 
 - Save warnings and data review offer Go to unit / Go to HQ for affected formations. Navigation cancels the pending save, switches faction/workspace, clears search, expands the tree and selects the exact record (including blank names).

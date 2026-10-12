@@ -46,7 +46,7 @@ public partial class MainWindow
         foreach (var metric in group.CardMetrics)
             SharedDetailPanel.Children.Add(new TextBlock { Text = metric.Label + ": " + metric.Value, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 5, 0, 0) });
         if (group.IsArmyGroup) {
-            SharedDetailPanel.Children.Add(new TextBlock { Text = "Army Group membership and headquarters are inspection only. Edit attached formations individually.", TextWrapping = TextWrapping.Wrap });
+            SharedDetailPanel.Children.Add(new TextBlock { Text = "Drag an independent land command onto an Army Group to change its membership. Army Group names and commanders are inspection only.", TextWrapping = TextWrapping.Wrap });
             return;
         }
         var transfer = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 4),

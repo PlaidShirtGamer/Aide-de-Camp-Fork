@@ -76,6 +76,41 @@ public sealed partial class GrandTacticianDataService
         return _armyGroups.Single(a => a.Source.GroupId == -2 - id).Source;
     }
 
+    public bool CanAssignArmyGroup(GroupNode command, GroupNode target) => !IsReadOnlySave &&
+        !command.IsArmyGroup && command.IsLandCommand && command.ParentId < 0 &&
+        _groups.TryGetValue(command.GroupId, out var actual) && ReferenceEquals(command, actual) &&
+        target.IsArmyGroup && target.Nation == command.Nation &&
+        _armyGroups.Any(a => a.Source.GroupId == target.GroupId && a.Source.CommanderId == target.CommanderId && a.Source.Nation == command.Nation);
+
+    public void AssignArmyGroup(GroupNode command, GroupNode target, int index, EditSession session)
+    {
+        RequireCreationSave();
+        if (!CanAssignArmyGroup(command, target)) throw new InvalidOperationException("Choose an Army Group in the same faction for an independent land command.");
+        TrackCreationBuffer("armygroups.dat"); TrackCreationBuffer("armygrouprefs.dat");
+        var before = CreationBuffer("armygroups.dat").CloneLines();
+        var refsBefore = CreationBuffer("armygrouprefs.dat").CloneLines();
+        ValidateArmyReferences(refsBefore, _groups.Count, _units.Count);
+        ArmyGroupDisplay.Parse(before, _groups, _commanderNations);
+        var after = new List<string>(before); var refsAfter = new List<string>(refsBefore);
+        int targetIndex = -2 - target.GroupId;
+        for (int i = 0; i < int.Parse(before[0], CultureInfo.InvariantCulture); i++) {
+            int line = 4 + i * 6;
+            var tokens = before[line].Split(';', StringSplitOptions.RemoveEmptyEntries).ToList();
+            bool removed = tokens.RemoveAll(t => int.Parse(t, CultureInfo.InvariantCulture) == command.GroupId) > 0;
+            if (i == targetIndex) tokens.Insert(Math.Clamp(index, 0, tokens.Count), command.GroupId.ToString("D4", CultureInfo.InvariantCulture));
+            if (removed || i == targetIndex) after[line] = string.Concat(tokens.Select(t => t + ";"));
+        }
+        for (int i = 0; i < _groups.Count; i++)
+            if (int.Parse(_groupBuffer!.Lines[1 + i * 32], CultureInfo.InvariantCulture) == command.GroupId)
+                refsAfter[1+i] = target.CommanderId.ToString(CultureInfo.InvariantCulture);
+        void Set(List<string> groups, List<string> refs) {
+            EnsureFilesUnchanged();
+            CreationBuffer("armygroups.dat").ReplaceLines(groups); CreationBuffer("armygrouprefs.dat").ReplaceLines(refs);
+            LoadArmyGroups();
+        }
+        session.ExecuteCreation("Assign " + command.Name + " to " + target.Name, () => Set(after, refsAfter), () => Set(before, refsBefore));
+    }
+
     private void ValidateAdditionalCreation()
     {
         if (_creationCompanions.TryGetValue("armygroups.dat", out var armyGroups))

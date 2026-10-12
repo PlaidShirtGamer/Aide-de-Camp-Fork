@@ -25,3 +25,7 @@ If `attributes.dat` exists, creation also appends zeroed change-history arrays (
 Synthetic tests cover IDs, immediate availability, edited-new-officer round trips, portrait installation, file-lock rollback, rank/date rejection, undo/redo across saves and Army Group assignment references. A local-copy integration test covers two created officers assigned to a newly created Army and Army Group. WPF tests exercise both creation/review dialogs. Game-load acceptance, portrait appearance and command availability should still be checked in game before relying on a new campaign.
 
 Base-game fixtures verify byte-preserving backups, unique IDs, duplicate rejection, optional attributes, stale-review protection and rollback after a locked-file failure. WPF checks cover base-game creation without a loaded save. No live base-game catalog is changed by automated tests.
+
+## Random names and dates
+
+**Randomize name** fills both editable name fields. It skips full names already present in the selected destination and the name currently entered. You can change either field afterward. The built-in pool suggests names, not historical officer identities. Both date pickers use a dark calendar; click its month/year heading for broader date navigation.

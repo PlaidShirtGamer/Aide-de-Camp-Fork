@@ -56,6 +56,29 @@ internal static partial class Program
         var ow=new CreateOfficerWindow(data,0);ow.Show();Flush(ow);
         Check(Field<ComboBox>(ow,"_rank").Items.Count==9&&Field<DatePicker>(ow,"_commission").SelectedDate==data.GameDate,"Officer dialog offers real ranks and defaults to campaign date");
         Check(Descendants(ow).OfType<Button>().Any(b=>b.Content?.ToString()=="Choose PNG portrait…"),"Officer dialog exposes PNG portrait selection");
+        var randomButton=Descendants(ow).OfType<Button>().Single(b=>b.Content?.ToString()=="Randomize name");
+        randomButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        string randomFirst=Field<TextBox>(ow,"_first").Text,randomLast=Field<TextBox>(ow,"_last").Text;
+        randomButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Check(randomFirst.Length>0 && randomLast.Length>0 && randomFirst+" "+randomLast!=Field<TextBox>(ow,"_first").Text+" "+Field<TextBox>(ow,"_last").Text,"Randomize name fills editable names and avoids repeating the current name");
+        foreach(string pickerName in new[]{"_birth","_commission"}) {
+            var picker=Field<DatePicker>(ow,pickerName);picker.IsDropDownOpen=true;Flush(ow);
+            var popup=(System.Windows.Controls.Primitives.Popup)picker.Template.FindName("PART_Popup",picker);
+            var calendar=Descendants(popup.Child).OfType<Calendar>().Single();
+            Check(calendar.CalendarItemStyle is not null && calendar.CalendarDayButtonStyle is not null,"Officer date popup applies dark calendar and day styles");
+            var item=Descendants(calendar).OfType<System.Windows.Controls.Primitives.CalendarItem>().Single();
+            var day=Descendants(item).OfType<System.Windows.Controls.Primitives.CalendarDayButton>().First(d=>!d.IsInactive && d.Content?.ToString()=="15");
+            Check(((SolidColorBrush)day.Foreground).Color==Color.FromRgb(232,237,242),"Calendar day text has explicit high-contrast foreground");
+            var popupImage=new RenderTargetBitmap((int)calendar.ActualWidth,(int)calendar.ActualHeight,96,96,PixelFormats.Pbgra32);popupImage.Render(calendar);
+            var popupEncoder=new PngBitmapEncoder();popupEncoder.Frames.Add(BitmapFrame.Create(popupImage));using(var file=File.Create(Path.Combine(output,pickerName+"-calendar.png")))popupEncoder.Save(file);
+            day.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));Flush(ow);
+            Check(picker.SelectedDate?.Day==15,"Date popup day selection still updates its DatePicker");
+            picker.IsDropDownOpen=true;Flush(ow);
+            var header=(Button)item.Template.FindName("PART_HeaderButton",item);header.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));Flush(ow);
+            Check(calendar.DisplayMode==CalendarMode.Year,"Dark calendar header switches to month/year selection");
+            calendar.DisplayMode=CalendarMode.Month;
+            picker.IsDropDownOpen=false;
+        }
         Capture(ow,"officer-creation.png");ow.Close();
         ow=new CreateOfficerWindow(data,1);
         Accept(ow,()=>{Field<TextBox>(ow,"_first").Text="New";Field<TextBox>(ow,"_last").Text="Officer";Field<ComboBox>(ow,"_rank").SelectedIndex=6;},()=>typeof(CreateOfficerWindow).GetMethod("Create",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(ow,[ow,new RoutedEventArgs()]));
@@ -89,6 +112,32 @@ internal static partial class Program
         typeof(MainWindow).GetMethod("NavigateToValidationTarget",BindingFlags.NonPublic|BindingFlags.Instance)!.Invoke(main,[hq]);
         Check(ReferenceEquals(Field<OobNode>(main,"_selectedNode"),hq),"HQ navigation remains distinct from combat unit with the same numeric ID");
         main.Close();
+
+        Write("groups.dat",new[]{"1"}.Concat(CreationRecords.Group(0,new UnitBlueprint {Headquarters=true,Name="Created Army",CommanderId=0,NativeTier=18,Perks=[new(),new(),new(),new()]},null)));
+        Write("armygroups.dat",["2","0","First Army Group","1","0000;","18","001-002-003","1","Second Army Group","2","","18","004-005-006"]);
+        Write("armygrouprefs.dat",["1","1","1","0","True","0"]);
+        var dragWindow=new MainWindow(true);var dragData=Field<GrandTacticianDataService>(dragWindow,"_data");dragData.LoadAsync(root,config).GetAwaiter().GetResult();
+        var flags=BindingFlags.Instance|BindingFlags.NonPublic;
+        typeof(MainWindow).GetMethod("RebuildSide",flags)!.Invoke(dragWindow,[true]);dragWindow.Show();Flush(dragWindow);
+        var army=dragData.Groups[0];var destination=dragData.ArmyGroups[1].Source;
+        Check((bool)typeof(MainWindow).GetMethod("ValidGroupDropParent",flags)!.Invoke(dragWindow,[army,destination])!,"Drag target validation accepts Army Group with same native tier as Army");
+        void SetField(string name,object value)=>typeof(MainWindow).GetField(name,flags)!.SetValue(dragWindow,value);
+        SetField("_activeGroupDrag",army);SetField("_dropParent",destination);SetField("_dropIndex",0);
+        SetField("_beforeDrag",Field<DisplayOobModel>(dragWindow,"_displayModel"));
+        var dragType=typeof(MainWindow).GetNestedType("GroupDrag",BindingFlags.NonPublic)!;
+        var payload=new DataObject();payload.SetData(dragType,Activator.CreateInstance(dragType,army)!);
+        var viewport=(FrameworkElement)dragWindow.FindName("OobViewport");
+        double zoom=Field<double>(dragWindow,"_zoom");
+        var pointer=viewport.TranslatePoint(new Point(Field<double>(dragWindow,"_panX")+(destination.CanvasX+20)*zoom,Field<double>(dragWindow,"_panY")+(destination.CanvasY+20)*zoom),dragWindow);
+        var args=(DragEventArgs)typeof(DragEventArgs).GetConstructors(flags).Single().Invoke([payload,DragDropKeyStates.LeftMouseButton,DragDropEffects.Move,dragWindow,pointer]);
+        args.RoutedEvent=DragDrop.DragOverEvent;
+        SetField("_dropIndex",-1);
+        typeof(MainWindow).GetMethod("PreviewGroupDrag",flags)!.Invoke(dragWindow,[args]);
+        Check(ReferenceEquals(Field<GroupNode>(dragWindow,"_dropParent"),destination) && args.Effects==DragDropEffects.Move,"Army Group card previews as a parent despite sharing Army native tier");
+        args.RoutedEvent=DragDrop.DropEvent;
+        typeof(MainWindow).GetMethod("OobDrop",flags)!.Invoke(dragWindow,[dragWindow,args]);Flush(dragWindow);
+        Check(args.Handled && dragData.ArmyGroups[1].AttachedGroupIds.Contains(0) && army.ParentId==-1,"Actual OOB drop handler stages Army Group membership without changing native parent");
+        Field<EditSession>(dragWindow,"_editSession").Undo(out _);dragWindow.Close();
 
         void Capture(Window window,string name)
         {

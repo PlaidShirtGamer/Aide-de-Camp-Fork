@@ -95,3 +95,16 @@ public sealed partial class ManagementDocument
         return record;
     }
 }
+
+public static class OfficerNameGenerator
+{
+    private static readonly string[] First = ["James", "William", "John", "Thomas", "George", "Henry", "Charles", "Edward", "Robert", "Samuel", "Joseph", "Andrew", "Benjamin", "Daniel", "Frederick", "Nathaniel", "Albert", "David", "Francis", "Walter"];
+    private static readonly string[] Last = ["Abbott", "Bennett", "Brooks", "Carter", "Clark", "Davis", "Ellis", "Fletcher", "Foster", "Gray", "Hale", "Hayes", "Howard", "Lawrence", "Mason", "Morgan", "Palmer", "Parker", "Porter", "Reed", "Russell", "Spencer", "Turner", "Walker", "Ward", "Warren", "Webster", "Wells", "West", "Wood"];
+    public static (string First, string Last) Generate(IEnumerable<string> existing, Random? random = null)
+    {
+        var used = existing.Select(n => n.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var available = (from first in First from last in Last where !used.Contains(first + " " + last) select (first, last)).ToArray();
+        if (available.Length == 0) throw new InvalidOperationException("All suggested names are already used. Enter a name manually.");
+        return available[(random ?? Random.Shared).Next(available.Length)];
+    }
+}

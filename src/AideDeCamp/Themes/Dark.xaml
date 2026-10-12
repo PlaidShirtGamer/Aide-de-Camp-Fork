@@ -54,4 +54,52 @@
   </ControlTemplate></Setter.Value></Setter>
  </Style>
  <Style TargetType="ToolTip"><Setter Property="Background" Value="{StaticResource ControlBrush}"/><Setter Property="Foreground" Value="{StaticResource TextBrush}"/></Style>
+ <Style x:Key="OfficerCalendarDay" TargetType="CalendarDayButton">
+  <Setter Property="Foreground" Value="#E8EDF2"/><Setter Property="Background" Value="#162833"/>
+  <Setter Property="MinWidth" Value="30"/><Setter Property="MinHeight" Value="28"/>
+  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CalendarDayButton">
+   <Border x:Name="Day" Background="{TemplateBinding Background}" BorderBrush="Transparent" BorderThickness="1" CornerRadius="2" Margin="1"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+   <ControlTemplate.Triggers>
+    <Trigger Property="IsInactive" Value="True"><Setter Property="Foreground" Value="#9EAEBB"/></Trigger>
+    <Trigger Property="IsToday" Value="True"><Setter TargetName="Day" Property="BorderBrush" Value="#80C9D4"/></Trigger>
+    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Day" Property="Background" Value="#34515F"/></Trigger>
+    <Trigger Property="IsSelected" Value="True"><Setter TargetName="Day" Property="Background" Value="#396C80"/><Setter Property="Foreground" Value="White"/></Trigger>
+    <Trigger Property="IsBlackedOut" Value="True"><Setter Property="Opacity" Value="0.4"/></Trigger>
+    <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
+   </ControlTemplate.Triggers>
+  </ControlTemplate></Setter.Value></Setter>
+ </Style>
+ <Style x:Key="OfficerCalendarMonth" TargetType="CalendarButton">
+  <Setter Property="Foreground" Value="#E8EDF2"/><Setter Property="Background" Value="#162833"/><Setter Property="MinHeight" Value="35"/>
+  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CalendarButton">
+   <Border x:Name="Month" Background="{TemplateBinding Background}" Margin="2" Padding="6"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+   <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Month" Property="Background" Value="#34515F"/></Trigger><Trigger Property="IsInactive" Value="True"><Setter Property="Foreground" Value="#9EAEBB"/></Trigger><Trigger Property="HasSelectedDays" Value="True"><Setter TargetName="Month" Property="Background" Value="#396C80"/></Trigger></ControlTemplate.Triggers>
+  </ControlTemplate></Setter.Value></Setter>
+ </Style>
+ <Style x:Key="OfficerCalendarItem" TargetType="CalendarItem">
+
+  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CalendarItem">
+   <ControlTemplate.Resources><DataTemplate x:Key="{ComponentResourceKey TypeInTargetAssembly={x:Type CalendarItem}, ResourceId=DayTitleTemplate}"><TextBlock Text="{Binding}" Foreground="#CBD7DF" HorizontalAlignment="Center" Margin="0,5"/></DataTemplate></ControlTemplate.Resources>
+   <Border Background="#162833" BorderBrush="#748D9A" BorderThickness="1" Padding="6">
+    <Grid x:Name="PART_Root"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="32"/><ColumnDefinition/><ColumnDefinition Width="32"/></Grid.ColumnDefinitions>
+      <Button x:Name="PART_PreviousButton" Content="◀" Padding="2" Foreground="#E8EDF2"/>
+      <Button x:Name="PART_HeaderButton" Grid.Column="1" Foreground="#E8EDF2" Padding="4"/>
+      <Button x:Name="PART_NextButton" Grid.Column="2" Content="▶" Padding="2" Foreground="#E8EDF2"/>
+     </Grid>
+     <Grid x:Name="PART_MonthView" Grid.Row="1">
+
+      <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+      <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+     </Grid>
+     <Grid x:Name="PART_YearView" Grid.Row="1" Visibility="Hidden"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions></Grid>
+    </Grid>
+   </Border>
+   <ControlTemplate.Triggers><DataTrigger Binding="{Binding DisplayMode, RelativeSource={RelativeSource AncestorType=Calendar}}" Value="Year"><Setter TargetName="PART_MonthView" Property="Visibility" Value="Hidden"/><Setter TargetName="PART_YearView" Property="Visibility" Value="Visible"/></DataTrigger><DataTrigger Binding="{Binding DisplayMode, RelativeSource={RelativeSource AncestorType=Calendar}}" Value="Decade"><Setter TargetName="PART_MonthView" Property="Visibility" Value="Hidden"/><Setter TargetName="PART_YearView" Property="Visibility" Value="Visible"/></DataTrigger></ControlTemplate.Triggers>
+  </ControlTemplate></Setter.Value></Setter>
+ </Style>
+ <Style x:Key="OfficerCalendarStyle" TargetType="Calendar">
+  <Setter Property="Background" Value="#162833"/><Setter Property="Foreground" Value="#E8EDF2"/>
+  <Setter Property="CalendarItemStyle" Value="{StaticResource OfficerCalendarItem}"/><Setter Property="CalendarDayButtonStyle" Value="{StaticResource OfficerCalendarDay}"/><Setter Property="CalendarButtonStyle" Value="{StaticResource OfficerCalendarMonth}"/>
+ </Style>
 </ResourceDictionary>

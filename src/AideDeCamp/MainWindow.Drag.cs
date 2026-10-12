@@ -72,7 +72,7 @@ public partial class MainWindow
     }
     private void BeginGroupDrag(DependencyObject source, GroupNode group)
     {
-        if (!group.IsLandCommand || group.IsArmyGroup || group.ArmyGroupName is not null) return;
+        if (!group.IsLandCommand || group.IsArmyGroup) return;
         _activeGroupDrag = group; _beforeDrag = _displayModel;
         _dropParent = null; _dropIndex = -1; _dragCommitted = false;
         _dragExpansions.Clear();
@@ -93,7 +93,7 @@ public partial class MainWindow
         }
     }
     private bool ValidGroupDropParent(GroupNode moving, GroupNode target)
-        => _data.CanMoveGroup(moving, target);
+        => target.IsArmyGroup ? _data.CanAssignArmyGroup(moving, target) : _data.CanMoveGroup(moving, target);
 
     private void PreviewGroupDrag(DragEventArgs e)
     {
@@ -117,9 +117,9 @@ public partial class MainWindow
         }
         GroupNode? parent;
         int index;
-        if (anchor.UnitTier == moving.UnitTier) {
-            parent = _data.Groups.GetValueOrDefault(anchor.ParentId);
-            if (parent is null && (moving.ParentId >= 0 || anchor.Nation != moving.Nation)) { ClearGroupPreview(); return; }
+        if (!anchor.IsArmyGroup && anchor.UnitTier == moving.UnitTier) {
+            parent = _beforeDrag.CommandsById.Values.FirstOrDefault(c => c.Subcommands.Any(child => child.Source == anchor))?.Source;
+            if (parent is null && (moving.ParentId >= 0 || moving.ArmyGroupName is not null || anchor.Nation != moving.Nation)) { ClearGroupPreview(); return; }
             var siblings = (parent is null ? _beforeDrag.Roots : _beforeDrag.CommandsById[parent.GroupId].Subcommands)
                 .Where(c => c.Source != moving).ToList();
             index = siblings.FindIndex(c => c.Source == anchor) + (x >= anchor.CanvasX + GetNodeWidth(anchor) / 2 ? 1 : 0);
@@ -245,6 +245,14 @@ public partial class MainWindow
             var moving = _activeGroupDrag;
             var order = (_dropParent is null ? _displayModel.Roots : _displayModel.CommandsById[_dropParent.GroupId].Subcommands).Select(c => c.Source).ToList();
             var parent = _dropParent;
+            if (parent is { IsArmyGroup: true }) {
+                try { _data.AssignArmyGroup(moving, parent, _dropIndex, _editSession); }
+                catch (Exception error) { StatusText.Text = "Unable to regroup command: " + error.Message; ClearGroupPreview(); e.Handled = true; return; }
+                _dragCommitted = true; _beforeDrag = null;
+                RebuildSide(); ShowGroup(moving); UpdateDirtyState();
+                StatusText.Text = $"Assigned {moving.Name} to {parent.Name}. Ctrl+Z undoes membership; Save changes writes it with backup.";
+                e.Handled = true; return;
+            }
             _editSession.Execute("Move command intact", _data.Units, _data.Groups.Values, () => {
                 if (parent is not null && moving.ParentId != parent.GroupId) _data.MoveGroup(moving, parent);
                 for (int i = 0; i < order.Count; i++) order[i].EditorOrder = i;

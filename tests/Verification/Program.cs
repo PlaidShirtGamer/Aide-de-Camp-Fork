@@ -10,6 +10,7 @@ if (args.Length == 3 && args[0] == "--new-command-copy") { await NewCreationChec
 await ArmyGroupChecks.Run(Check);
 await NewCreationChecks.Run(Check);
 BaseOfficerChecks.Run(Check);
+await ArmyGroupTransferChecks.Run(Check);
 if (args.Length == 3 && args[0] == "--creation-write") { try { await CreationChecks.Run(args[1], args[2], Check); Console.WriteLine($"Creation checks passed: {checks}"); } catch (Exception e) { Console.Error.WriteLine(e); Environment.ExitCode = 1; } return; }
 if (args.Length == 4 && args[0] == "--creation-batch") { try { await CreationBatch.Build(args[1], args[2], args[3]); } catch (Exception e) { Console.Error.WriteLine(e); Environment.ExitCode = 1; } return; }
 if (args.Length == 4 && args[0] == "--creation-resave") { try { await CreationBatch.AuditResave(args[1], args[2], args[3], Check); Console.WriteLine($"Game resave checks passed: {checks}"); } catch (Exception e) { Console.Error.WriteLine(e); Environment.ExitCode = 1; } return; }

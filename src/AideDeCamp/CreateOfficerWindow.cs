@@ -52,6 +52,7 @@ public sealed class CreateOfficerWindow : Window
         _state.ItemsSource = new[] { new AideDeCamp.Models.StateOption(-1, "Unspecified", "") }.Concat(data.StateOptions).ToArray();
         _state.DisplayMemberPath = "Name"; _state.SelectedIndex = 0;
         foreach (var picker in new[] { _birth, _commission }) {
+            picker.CalendarStyle = (Style)FindResource("OfficerCalendarStyle");
             var textStyle = new Style(typeof(System.Windows.Controls.Primitives.DatePickerTextBox));
             textStyle.Setters.Add(new Setter(Control.ForegroundProperty, Brushes.Gainsboro));
             textStyle.Setters.Add(new Setter(Control.BackgroundProperty, new SolidColorBrush(Color.FromRgb(22,40,51))));
@@ -62,6 +63,20 @@ public sealed class CreateOfficerWindow : Window
             };
         }
         _birth.SelectedDate = new DateTime(1820,1,1); _commission.SelectedDate = data.GameDate ?? new DateTime(1861,1,1);
+        var randomName = new Button { Content = "Randomize name", HorizontalAlignment = HorizontalAlignment.Left, Margin = new(0,4,0,8) };
+        randomName.Click += (_,_) => {
+            try {
+                IEnumerable<string> names;
+                if (BaseGame) {
+                    var lines = File.ReadAllLines(Path.Combine(_config ?? throw new InvalidDataException("Select a game folder first."), "commanders.txt"));
+                    int count = CreationRecords.FixedCount(lines, 66, "commanders.txt");
+                    names = Enumerable.Range(0,count).Select(i => lines[4+i*66]);
+                } else names = _data.GetCreationOfficers().Select(o => o.Name);
+                var name = OfficerNameGenerator.Generate(names.Append(_first.Text.Trim()+" "+_last.Text.Trim()));
+                _first.Text = name.First; _last.Text = name.Last; _error.Text = "";
+            } catch (Exception error) { _error.Text = error.Message; }
+        };
+        body.Children.Add(randomName);
         Row(body,"First name",_first); Row(body,"Last name",_last); Row(body,"Faction",_faction); Row(body,"Rank",_rank);
         Row(body,"Branch",_branch); Row(body,"Home state",_state); Row(body,"Date of birth",_birth); Row(body,"Date rank attained",_commission);
         var portrait = new StackPanel(); var browse = new Button { Content = "Choose PNG portrait…", HorizontalAlignment = HorizontalAlignment.Left };
